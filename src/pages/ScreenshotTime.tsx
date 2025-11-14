@@ -132,8 +132,11 @@ export default function ScreenshotTime() {
       playBeep();
     } else if (countdown === 0) {
       playBeep();
-      setIsCountingDown(false);
-      setCountdown(null);
+      // 비동기로 상태 업데이트하여 cascading renders 방지
+      setTimeout(() => {
+        setIsCountingDown(false);
+        setCountdown(null);
+      }, 0);
     }
   }, [countdown, isActive, isCountingDown, notify30Seconds, playBeep]);
 
@@ -228,28 +231,35 @@ export default function ScreenshotTime() {
   const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <Link to="/" className="text-indigo-600 hover:text-indigo-800 font-medium">
+    <div className='max-w-4x'>
+      <div className='mb-6'>
+        <Link
+          to='/'
+          className='text-indigo-600 hover:text-indigo-800 font-medium'
+        >
           ← 대시보드로 돌아가기
         </Link>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className='bg-white rounded-lg shadow-md p-6 mb-6'>
+        <div className='flex justify-between items-center mb-6'>
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">스크린샷 타임 📸</h1>
-            <p className="text-gray-600 mt-2">설정된 시간에 카운트다운을 시작합니다</p>
+            <h1 className='text-3xl font-bold text-gray-800'>
+              스크린샷 타임 📸
+            </h1>
+            <p className='text-gray-600 mt-2'>
+              설정된 시간에 카운트다운을 시작합니다
+            </p>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-indigo-600 mb-1">
+          <div className='text-center'>
+            <div className='text-3xl font-bold text-indigo-600 mb-1'>
               {currentTime.toLocaleTimeString('ko-KR', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
               })}
             </div>
-            <div className="text-sm text-gray-500">
+            <div className='text-sm text-gray-500'>
               {currentTime.toLocaleDateString('ko-KR', {
                 month: 'long',
                 day: 'numeric',
@@ -260,17 +270,21 @@ export default function ScreenshotTime() {
         </div>
 
         {isCountingDown && countdown !== null && (
-          <div className="bg-red-50 border-4 border-red-500 rounded-xl p-8 mb-6 text-center animate-pulse">
-            <div className="text-6xl font-bold text-red-600 mb-2">
+          <div className='bg-red-50 border-4 border-red-500 rounded-xl p-8 mb-6 text-center animate-pulse'>
+            <div className='text-6xl font-bold text-red-600 mb-2'>
               {countdown}초
             </div>
-            <p className="text-xl text-red-700 font-semibold">
-              {countdown > 30 ? '준비하세요!' : countdown > 10 ? '곧 스크린샷 시간입니다!' : '카운트다운!'}
+            <p className='text-xl text-red-700 font-semibold'>
+              {countdown > 30
+                ? '준비하세요!'
+                : countdown > 10
+                ? '곧 스크린샷 시간입니다!'
+                : '카운트다운!'}
             </p>
           </div>
         )}
 
-        <div className="flex gap-3 mb-6">
+        <div className='flex gap-3 mb-6'>
           <button
             onClick={toggleActive}
             className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg transition-colors ${
@@ -283,29 +297,29 @@ export default function ScreenshotTime() {
           </button>
           <button
             onClick={testCountdown}
-            className="px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            className='px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium'
           >
             테스트 (60초)
           </button>
         </div>
 
-        <div className="flex gap-2 mb-6">
+        <div className='flex gap-2 mb-6'>
           <button
             onClick={resetToDefault}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+            className='px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium'
           >
             기본값으로 초기화
           </button>
           <button
             onClick={resetTriggers}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+            className='px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium'
           >
             트리거 초기화
           </button>
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className='space-y-3'>
         {sortedSlots.map((slot) => (
           <div
             key={slot.id}
@@ -313,19 +327,21 @@ export default function ScreenshotTime() {
               slot.enabled ? 'border-l-4 border-purple-500' : 'opacity-60'
             } ${slot.triggered ? 'bg-green-50' : ''}`}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center flex-1">
-                <div className="text-3xl font-bold text-purple-600 w-24">
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center flex-1'>
+                <div className='text-3xl font-bold text-purple-600 w-24'>
                   {slot.time}
                 </div>
-                <div className="flex-1">
-                  <p className="text-lg font-medium text-gray-800">스크린샷 타임</p>
+                <div className='flex-1'>
+                  <p className='text-lg font-medium text-gray-800'>
+                    스크린샷 타임
+                  </p>
                   {slot.triggered && (
-                    <p className="text-sm text-green-600">✓ 오늘 실행됨</p>
+                    <p className='text-sm text-green-600'>✓ 오늘 실행됨</p>
                   )}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className='flex gap-2'>
                 <button
                   onClick={() => toggleSlot(slot.id)}
                   className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -342,10 +358,13 @@ export default function ScreenshotTime() {
         ))}
       </div>
 
-      <div className="mt-6 bg-purple-50 rounded-lg p-4">
-        <h3 className="font-bold text-purple-900 mb-2">💡 사용 방법</h3>
-        <ul className="text-sm text-purple-800 space-y-1">
-          <li>• 타이머 시작 버튼을 누르면 설정된 시간에 자동으로 60초 카운트다운이 시작됩니다</li>
+      <div className='mt-6 bg-purple-50 rounded-lg p-4'>
+        <h3 className='font-bold text-purple-900 mb-2'>💡 사용 방법</h3>
+        <ul className='text-sm text-purple-800 space-y-1'>
+          <li>
+            • 타이머 시작 버튼을 누르면 설정된 시간에 자동으로 60초 카운트다운이
+            시작됩니다
+          </li>
           <li>• 30초 남았을 때 알림음과 함께 알림이 표시됩니다</li>
           <li>• 10초부터는 매초마다 삐 소리가 납니다</li>
           <li>• 같은 시간의 카운트다운은 하루에 한 번만 실행됩니다</li>
