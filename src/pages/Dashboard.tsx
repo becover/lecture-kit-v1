@@ -23,6 +23,13 @@ export default function Dashboard() {
       to: '/timer',
       color: 'border-blue-500',
     },
+    {
+      title: '스크린샷 타임',
+      description: '설정된 시간에 카운트다운 타이머 실행',
+      icon: '📸',
+      to: '/screenshot-time',
+      color: 'border-purple-500',
+    },
     // {
     //   title: '설문 조사',
     //   description: '실시간 설문 및 퀴즈',
@@ -66,6 +73,10 @@ export default function Dashboard() {
           <li>
             • <strong>타이머:</strong> 발표, 토론, 시험 등 다양한 활동의 시간
             관리
+          </li>
+          <li>
+            • <strong>스크린샷 타임:</strong> 설정된 시간에 60초 카운트다운,
+            30초 및 10초부터 알림
           </li>
           {/* <li>• <strong>설문:</strong> 실시간으로 학생들의 이해도와 피드백 확인</li> */}
           {/* <li>• <strong>자료 업로드:</strong> 강의 자료를 쉽게 공유하고 관리</li> */}
