@@ -68,6 +68,10 @@ export default function ScreenshotTime() {
   });
   const modelRef = useRef<blazeface.BlazeFaceModel | null>(null);
   const lastCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [testImage, setTestImage] = useState<File | null>(null);
+  const [testResult, setTestResult] = useState<FaceDetectionResult | null>(null);
+  const [testCanvasUrl, setTestCanvasUrl] = useState<string | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
 
   // BlazeFace 모델 로드
   useEffect(() => {
@@ -647,6 +651,96 @@ export default function ScreenshotTime() {
     }
   };
 
+  // 테스트 이미지 업로드 핸들러
+  const handleTestImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setTestImage(file);
+      setTestResult(null);
+      setTestCanvasUrl(null);
+    } else {
+      alert('이미지 파일만 업로드할 수 있습니다.');
+    }
+  };
+
+  // 업로드된 이미지로 얼굴 인식 테스트
+  const testFaceDetection = async () => {
+    if (!testImage) {
+      alert('먼저 테스트할 이미지를 업로드해주세요.');
+      return;
+    }
+
+    if (!modelRef.current) {
+      alert('얼굴 인식 모델이 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    try {
+      setIsTesting(true);
+      setTestResult(null);
+      setTestCanvasUrl(null);
+
+      console.log('🧪 테스트 이미지 분석 시작...');
+
+      // 이미지를 canvas에 로드
+      const img = new Image();
+      const imageUrl = URL.createObjectURL(testImage);
+
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('이미지 로드 실패'));
+        img.src = imageUrl;
+      });
+
+      // canvas 생성
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        throw new Error('Canvas context를 생성할 수 없습니다');
+      }
+
+      ctx.drawImage(img, 0, 0);
+
+      // 얼굴 인식
+      const result = await analyzeFaces(canvas);
+      setTestResult(result);
+
+      // 얼굴에 박스 그리기
+      const predictions = await modelRef.current.estimateFaces(canvas, false);
+
+      predictions.forEach((prediction: any) => {
+        const [x1, y1] = prediction.topLeft as [number, number];
+        const [x2, y2] = prediction.bottomRight as [number, number];
+
+        // 박스 그리기
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+        // 얼굴 번호 표시
+        ctx.fillStyle = '#00ff00';
+        ctx.font = '20px Arial';
+        ctx.fillText(`Face ${predictions.indexOf(prediction) + 1}`, x1, y1 - 10);
+      });
+
+      // canvas를 이미지 URL로 변환
+      const resultUrl = canvas.toDataURL('image/png');
+      setTestCanvasUrl(resultUrl);
+
+      URL.revokeObjectURL(imageUrl);
+      setIsTesting(false);
+
+      console.log('✅ 테스트 완료:', result);
+    } catch (error) {
+      console.error('❌ 테스트 실패:', error);
+      alert('테스트 중 오류가 발생했습니다.');
+      setIsTesting(false);
+    }
+  };
+
   const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
 
   return (
@@ -807,6 +901,69 @@ export default function ScreenshotTime() {
             </p>
           </div>
 
+          <div className='bg-green-50 border border-green-200 rounded-lg p-4 mb-3'>
+            <h3 className='font-bold text-green-900 mb-3'>🧪 얼굴 인식 테스트</h3>
+            <p className='text-xs text-gray-600 mb-3'>
+              이미 촬영한 줌 갤러리 화면을 업로드하여 얼굴 인식 정확도를 테스트할 수 있습니다.
+            </p>
+            <div className='flex gap-2 mb-3'>
+              <input
+                type='file'
+                accept='image/*'
+                onChange={handleTestImageUpload}
+                className='flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500'
+              />
+              <button
+                onClick={testFaceDetection}
+                disabled={!testImage || isTesting}
+                className='px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {isTesting ? '🔍 분석 중...' : '🧪 테스트 실행'}
+              </button>
+            </div>
+
+            {testResult && (
+              <div className='mt-4 p-3 bg-white rounded-lg border border-green-200'>
+                <h4 className='font-bold text-gray-800 mb-2'>
+                  📊 테스트 결과
+                </h4>
+                <div className='text-sm space-y-1'>
+                  <p className='font-medium text-gray-700'>
+                    감지된 얼굴: <span className='text-green-600 font-bold'>{testResult.faceCount}개</span>
+                  </p>
+                  {testResult.warnings.length > 0 && (
+                    <div className='mt-2'>
+                      <p className='font-medium text-orange-700 mb-1'>⚠️ 경고:</p>
+                      <ul className='list-disc list-inside text-gray-600 space-y-1'>
+                        {testResult.warnings.map((warning, idx) => (
+                          <li key={idx}>{warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {testResult.warnings.length === 0 && testResult.faceCount > 0 && (
+                    <p className='text-green-600 font-medium mt-2'>
+                      ✅ 모든 얼굴이 정상적으로 감지되었습니다!
+                    </p>
+                  )}
+                </div>
+
+                {testCanvasUrl && (
+                  <div className='mt-3'>
+                    <p className='text-xs text-gray-500 mb-2'>
+                      감지된 얼굴에 녹색 박스가 표시됩니다:
+                    </p>
+                    <img
+                      src={testCanvasUrl}
+                      alt='Face detection result'
+                      className='w-full border border-gray-300 rounded'
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className='flex gap-2'>
             <button
               onClick={resetToDefault}
@@ -875,6 +1032,7 @@ export default function ScreenshotTime() {
           <li>• <strong>폴더 선택</strong>으로 스크린샷 저장 위치 지정 (Chrome/Edge만)</li>
           <li>• <strong>프리픽스 사용</strong>으로 파일명 앞에 원하는 텍스트 추가 가능 (예: lecture_25-11-14-09-00.png)</li>
           <li>• <strong>얼굴 인식</strong>을 활성화하면 스크린샷 촬영 후 자동으로 얼굴을 감지하여 결과를 알려드립니다</li>
+          <li>• <strong>얼굴 인식 테스트</strong>로 이미 찍은 줌 갤러리 화면을 업로드하여 감지 정확도를 확인할 수 있습니다</li>
           <li>• <strong>스크린샷 버튼</strong>을 누르면 전체 화면을 캡처합니다 (멀티 모니터 선택 가능)</li>
           <li>• <strong>재촬영 버튼</strong>으로 문제가 있을 때 다시 촬영할 수 있습니다</li>
           <li>• 파일명 형식: YY-MM-DD-HH-MM.png (예: 25-11-14-09-00.png)</li>
@@ -882,6 +1040,16 @@ export default function ScreenshotTime() {
           <li>• 같은 시간의 카운트다운은 하루에 한 번만 실행됩니다</li>
           <li>• 자정이 지나면 모든 트리거 상태가 초기화됩니다</li>
         </ul>
+
+        <div className='mt-4 pt-4 border-t border-purple-200'>
+          <h4 className='font-bold text-purple-900 mb-2'>🎯 줌 갤러리 화면 촬영 팁</h4>
+          <ul className='text-sm text-purple-800 space-y-1'>
+            <li>• 줌 갤러리 뷰에서 여러 사람의 얼굴을 한 번에 촬영할 수 있습니다</li>
+            <li>• 얼굴 인식 기능이 각 참가자의 얼굴 크기와 위치를 자동으로 분석합니다</li>
+            <li>• 얼굴이 화면 1% 미만으로 작거나, 화면 가장자리 5% 이내에 있으면 경고합니다</li>
+            <li>• 테스트 기능으로 미리 촬영된 이미지의 감지 정확도를 확인하세요</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
