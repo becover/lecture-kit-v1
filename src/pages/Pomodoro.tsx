@@ -254,28 +254,35 @@ export default function Pomodoro() {
   const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <Link to="/" className="text-indigo-600 hover:text-indigo-800 font-medium">
+    <div className='max-w-full'>
+      <div className='mb-6'>
+        <Link
+          to='/'
+          className='text-indigo-600 hover:text-indigo-800 font-medium'
+        >
           ← 대시보드로 돌아가기
         </Link>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className='bg-white rounded-lg shadow-md p-6 mb-6'>
+        <div className='flex justify-between items-center mb-6'>
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">수업 시간표 알림 🔔</h1>
-            <p className="text-gray-600 mt-2">설정된 시간에 자동으로 알림을 받으세요</p>
+            <h1 className='text-3xl font-bold text-gray-800'>
+              수업 시간표 알림 🔔
+            </h1>
+            <p className='text-gray-600 mt-2'>
+              설정된 시간에 자동으로 알림을 받으세요
+            </p>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-indigo-600 mb-1">
+          <div className='text-center'>
+            <div className='text-3xl font-bold text-indigo-600 mb-1'>
               {currentTime.toLocaleTimeString('ko-KR', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
               })}
             </div>
-            <div className="text-sm text-gray-500">
+            <div className='text-sm text-gray-500'>
               {currentTime.toLocaleDateString('ko-KR', {
                 month: 'long',
                 day: 'numeric',
@@ -286,19 +293,19 @@ export default function Pomodoro() {
         </div>
 
         {notificationPermission !== 'granted' && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="text-2xl">⚠️</span>
+          <div className='bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6'>
+            <div className='flex items-center'>
+              <div className='flex-shrink-0'>
+                <span className='text-2xl'>⚠️</span>
               </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm text-yellow-800">
+              <div className='ml-3 flex-1'>
+                <p className='text-sm text-yellow-800'>
                   알림을 받으려면 브라우저 알림 권한이 필요합니다.
                 </p>
               </div>
               <button
                 onClick={requestNotificationPermission}
-                className="ml-3 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium"
+                className='ml-3 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium'
               >
                 권한 허용
               </button>
@@ -306,7 +313,7 @@ export default function Pomodoro() {
           </div>
         )}
 
-        <div className="flex gap-3 mb-6">
+        <div className='flex gap-3 mb-6'>
           <button
             onClick={toggleActive}
             disabled={notificationPermission !== 'granted'}
@@ -320,29 +327,29 @@ export default function Pomodoro() {
           </button>
           <button
             onClick={testNotification}
-            className="px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            className='px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium'
           >
             테스트 알림
           </button>
         </div>
 
-        <div className="flex gap-2 mb-6">
+        <div className='flex gap-2 mb-6'>
           <button
             onClick={addNewSlot}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+            className='px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium'
           >
             + 시간대 추가
           </button>
           <button
             onClick={resetToDefault}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+            className='px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium'
           >
             기본값으로 초기화
           </button>
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className='space-y-3'>
         {sortedSlots.map((slot) => (
           <div
             key={slot.id}
@@ -351,60 +358,64 @@ export default function Pomodoro() {
             } ${slot.notified ? 'bg-green-50' : ''}`}
           >
             {editingId === slot.id ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+              <div className='space-y-3'>
+                <div className='grid grid-cols-2 gap-3'>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className='block text-sm font-medium text-gray-700 mb-1'>
                       시간
                     </label>
                     <input
-                      type="time"
+                      type='time'
                       value={editTime}
                       onChange={(e) => setEditTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className='block text-sm font-medium text-gray-700 mb-1'>
                       메시지
                     </label>
                     <input
-                      type="text"
+                      type='text'
                       value={editMessage}
                       onChange={(e) => setEditMessage(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
                     />
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className='flex gap-2'>
                   <button
                     onClick={saveEdit}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    className='px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors'
                   >
                     저장
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    className='px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors'
                   >
                     취소
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center flex-1">
-                  <div className="text-3xl font-bold text-indigo-600 w-24">
+              <div className='flex items-center justify-between'>
+                <div className='flex items-center flex-1'>
+                  <div className='text-3xl font-bold text-indigo-600 w-24'>
                     {slot.time}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-lg font-medium text-gray-800">{slot.message}</p>
+                  <div className='flex-1'>
+                    <p className='text-lg font-medium text-gray-800'>
+                      {slot.message}
+                    </p>
                     {slot.notified && (
-                      <p className="text-sm text-green-600">✓ 오늘 알림 발송됨</p>
+                      <p className='text-sm text-green-600'>
+                        ✓ 오늘 알림 발송됨
+                      </p>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className='flex gap-2'>
                   <button
                     onClick={() => toggleSlot(slot.id)}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -417,13 +428,13 @@ export default function Pomodoro() {
                   </button>
                   <button
                     onClick={() => startEdit(slot)}
-                    className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+                    className='px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium'
                   >
                     수정
                   </button>
                   <button
                     onClick={() => deleteSlot(slot.id)}
-                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
+                    className='px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium'
                   >
                     삭제
                   </button>
@@ -434,11 +445,17 @@ export default function Pomodoro() {
         ))}
       </div>
 
-      <div className="mt-6 bg-blue-50 rounded-lg p-4">
-        <h3 className="font-bold text-blue-900 mb-2">💡 사용 팁</h3>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• 알림 시작 버튼을 누르면 설정된 시간에 자동으로 시스템 알림이 발송됩니다</li>
-          <li>• 브라우저가 최소화되어 있거나 다른 화면을 보고 있어도 알림이 표시됩니다</li>
+      <div className='mt-6 bg-blue-50 rounded-lg p-4'>
+        <h3 className='font-bold text-blue-900 mb-2'>💡 사용 팁</h3>
+        <ul className='text-sm text-blue-800 space-y-1'>
+          <li>
+            • 알림 시작 버튼을 누르면 설정된 시간에 자동으로 시스템 알림이
+            발송됩니다
+          </li>
+          <li>
+            • 브라우저가 최소화되어 있거나 다른 화면을 보고 있어도 알림이
+            표시됩니다
+          </li>
           <li>• 시간대를 클릭하여 수정하거나 비활성화할 수 있습니다</li>
           <li>• 같은 시간의 알림은 하루에 한 번만 발송됩니다</li>
           <li>• 자정이 지나면 모든 알림 상태가 초기화됩니다</li>
