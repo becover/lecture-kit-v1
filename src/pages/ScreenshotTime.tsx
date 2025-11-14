@@ -265,7 +265,7 @@ export default function ScreenshotTime() {
     }
   };
 
-  // 파일명 생성 (YY-MM-DD-HH:MM 형식 + 중복 처리)
+  // 파일명 생성 (YY-MM-DD-HH-MM 형식 + 중복 처리)
   const generateFilename = (now: Date): string => {
     const yy = String(now.getFullYear()).slice(-2);
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -273,7 +273,8 @@ export default function ScreenshotTime() {
     const hh = String(now.getHours()).padStart(2, '0');
     const min = String(now.getMinutes()).padStart(2, '0');
 
-    const baseFilename = `${yy}-${mm}-${dd}-${hh}:${min}`;
+    // 파일명에는 콜론 사용 불가 - 하이픈으로 대체
+    const baseFilename = `${yy}-${mm}-${dd}-${hh}-${min}`;
 
     // localStorage에서 해당 시간대의 카운터 가져오기
     const counterKey = `screenshot-counter-${baseFilename}`;
@@ -534,7 +535,7 @@ export default function ScreenshotTime() {
                 />
                 <p className='text-xs text-gray-500 mt-2'>
                   {filenamePrefix
-                    ? `파일명 예시: ${filenamePrefix}_25-11-14-09:00.png`
+                    ? `파일명 예시: ${filenamePrefix}_25-11-14-09-00.png`
                     : '프리픽스를 입력하세요'}
                 </p>
               </div>
@@ -607,9 +608,9 @@ export default function ScreenshotTime() {
           <li>• 30초 남았을 때 알림음과 함께 알림이 표시됩니다</li>
           <li>• 10초부터는 매초마다 삐 소리가 납니다</li>
           <li>• <strong>폴더 선택</strong>으로 스크린샷 저장 위치 지정 (Chrome/Edge만)</li>
-          <li>• <strong>프리픽스 사용</strong>으로 파일명 앞에 원하는 텍스트 추가 가능 (예: lecture_25-11-14-09:00.png)</li>
+          <li>• <strong>프리픽스 사용</strong>으로 파일명 앞에 원하는 텍스트 추가 가능 (예: lecture_25-11-14-09-00.png)</li>
           <li>• <strong>스크린샷 버튼</strong>을 누르면 전체 화면을 캡처합니다 (멀티 모니터 선택 가능)</li>
-          <li>• 파일명 형식: YY-MM-DD-HH:MM.png (예: 25-11-14-09:00.png)</li>
+          <li>• 파일명 형식: YY-MM-DD-HH-MM.png (예: 25-11-14-09-00.png)</li>
           <li>• 같은 시간대에 여러 장 촬영 시 자동으로 (1), (2), (3)... 번호가 붙습니다</li>
           <li>• 같은 시간의 카운트다운은 하루에 한 번만 실행됩니다</li>
           <li>• 자정이 지나면 모든 트리거 상태가 초기화됩니다</li>
