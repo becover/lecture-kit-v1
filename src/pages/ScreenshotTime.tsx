@@ -347,12 +347,33 @@ export default function ScreenshotTime() {
         // File System Access API로 저장 (지원하는 브라우저만)
         if (saveDirectory && 'showDirectoryPicker' in window) {
           try {
-            const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
-            const writable = await fileHandle.createWritable();
-            await writable.write(blob);
-            await writable.close();
-            console.log('✅ 스크린샷 저장 완료 (폴더):', filename);
-            alert(`스크린샷이 저장되었습니다: ${filename}`);
+            // 폴더 권한 확인
+            const permission = await (saveDirectory as any).queryPermission({ mode: 'readwrite' });
+
+            if (permission === 'granted') {
+              // 권한 있음 - 바로 저장
+              const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
+              const writable = await fileHandle.createWritable();
+              await writable.write(blob);
+              await writable.close();
+              console.log('✅ 스크린샷 저장 완료 (폴더):', filename);
+              console.log('저장 위치:', savePath);
+            } else if (permission === 'prompt') {
+              // 권한 요청 필요
+              const newPermission = await (saveDirectory as any).requestPermission({ mode: 'readwrite' });
+              if (newPermission === 'granted') {
+                const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                console.log('✅ 스크린샷 저장 완료 (폴더):', filename);
+                console.log('저장 위치:', savePath);
+              } else {
+                throw new Error('폴더 쓰기 권한이 거부되었습니다');
+              }
+            } else {
+              throw new Error('폴더 쓰기 권한이 없습니다');
+            }
           } catch (err) {
             console.error('폴더 저장 실패, 다운로드로 전환:', err);
             // 폴더 저장 실패 시 기본 다운로드
