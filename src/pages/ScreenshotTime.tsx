@@ -43,6 +43,8 @@ export default function ScreenshotTime() {
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [timeOffset, setTimeOffset] = useState(0); // 서버 시간과의 차이 (ms)
   const [isCapturing, setIsCapturing] = useState(false);
+  const [saveDirectory, setSaveDirectory] = useState<FileSystemDirectoryHandle | null>(null);
+  const [savePath, setSavePath] = useState<string>('브라우저 다운로드 폴더');
 
   // 서버 시간 동기화
   useEffect(() => {
@@ -229,6 +231,50 @@ export default function ScreenshotTime() {
     setIsCountingDown(true);
   };
 
+  // 저장 폴더 선택
+  const selectSaveDirectory = async () => {
+    try {
+      if ('showDirectoryPicker' in window) {
+        const dirHandle = await (window as any).showDirectoryPicker({
+          mode: 'readwrite',
+        });
+        setSaveDirectory(dirHandle);
+        setSavePath(dirHandle.name);
+        console.log('✅ 저장 폴더 선택:', dirHandle.name);
+      } else {
+        alert('이 브라우저는 폴더 선택을 지원하지 않습니다. 브라우저 다운로드 폴더에 저장됩니다.');
+      }
+    } catch (error) {
+      console.error('❌ 폴더 선택 실패:', error);
+    }
+  };
+
+  // 파일명 생성 (YY-MM-DD-HH:MM 형식 + 중복 처리)
+  const generateFilename = (now: Date): string => {
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+
+    const baseFilename = `${yy}-${mm}-${dd}-${hh}:${min}`;
+
+    // localStorage에서 해당 시간대의 카운터 가져오기
+    const counterKey = `screenshot-counter-${baseFilename}`;
+    const counter = parseInt(localStorage.getItem(counterKey) || '0', 10);
+
+    // 새 카운터 값 저장
+    const newCounter = counter + 1;
+    localStorage.setItem(counterKey, String(newCounter));
+
+    // 파일명 생성
+    if (newCounter === 1) {
+      return `${baseFilename}.png`;
+    } else {
+      return `${baseFilename}(${newCounter - 1}).png`;
+    }
+  };
+
   // 스크린샷 캡처
   const captureScreenshot = async () => {
     try {
@@ -270,23 +316,34 @@ export default function ScreenshotTime() {
       // 스트림 중지
       stream.getTracks().forEach(track => track.stop());
 
-      // 이미지로 변환 및 다운로드
-      canvas.toBlob((blob) => {
+      // 이미지로 변환
+      canvas.toBlob(async (blob) => {
         if (!blob) {
           throw new Error('이미지 변환 실패');
         }
 
         const now = getAccurateTime();
-        const filename = `screenshot_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}.png`;
+        const filename = generateFilename(now);
 
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
+        // File System Access API로 저장 (지원하는 브라우저만)
+        if (saveDirectory && 'showDirectoryPicker' in window) {
+          try {
+            const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            console.log('✅ 스크린샷 저장 완료 (폴더):', filename);
+            alert(`스크린샷이 저장되었습니다: ${filename}`);
+          } catch (err) {
+            console.error('폴더 저장 실패, 다운로드로 전환:', err);
+            // 폴더 저장 실패 시 기본 다운로드
+            downloadBlob(blob, filename);
+          }
+        } else {
+          // 기본 다운로드
+          downloadBlob(blob, filename);
+        }
 
-        console.log('✅ 스크린샷 저장 완료:', filename);
         setIsCapturing(false);
       }, 'image/png');
 
@@ -295,6 +352,17 @@ export default function ScreenshotTime() {
       alert('스크린샷 캡처에 실패했습니다. 권한을 확인해주세요.');
       setIsCapturing(false);
     }
+  };
+
+  // 블롭 다운로드 헬퍼
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    console.log('✅ 스크린샷 다운로드 완료:', filename);
   };
 
   const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
@@ -379,19 +447,39 @@ export default function ScreenshotTime() {
           </button>
         </div>
 
-        <div className='flex gap-2 mb-6'>
-          <button
-            onClick={resetToDefault}
-            className='px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium'
-          >
-            기본값으로 초기화
-          </button>
-          <button
-            onClick={resetTriggers}
-            className='px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium'
-          >
-            트리거 초기화
-          </button>
+        <div className='mb-6'>
+          <div className='bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <p className='text-sm font-medium text-gray-700 mb-1'>저장 폴더</p>
+                <p className='text-sm text-gray-600'>📁 {savePath}</p>
+              </div>
+              <button
+                onClick={selectSaveDirectory}
+                className='px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium'
+              >
+                폴더 선택
+              </button>
+            </div>
+            <p className='text-xs text-gray-500 mt-2'>
+              ※ Chrome/Edge에서만 폴더 선택 가능. 다른 브라우저는 다운로드 폴더에 자동 저장됩니다.
+            </p>
+          </div>
+
+          <div className='flex gap-2'>
+            <button
+              onClick={resetToDefault}
+              className='px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium'
+            >
+              기본값으로 초기화
+            </button>
+            <button
+              onClick={resetTriggers}
+              className='px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium'
+            >
+              트리거 초기화
+            </button>
+          </div>
         </div>
       </div>
 
@@ -443,7 +531,10 @@ export default function ScreenshotTime() {
           </li>
           <li>• 30초 남았을 때 알림음과 함께 알림이 표시됩니다</li>
           <li>• 10초부터는 매초마다 삐 소리가 납니다</li>
-          <li>• <strong>스크린샷 버튼</strong>을 누르면 전체 화면을 캡처할 수 있습니다 (멀티 모니터 선택 가능)</li>
+          <li>• <strong>폴더 선택</strong>으로 스크린샷 저장 위치 지정 (Chrome/Edge만)</li>
+          <li>• <strong>스크린샷 버튼</strong>을 누르면 전체 화면을 캡처합니다 (멀티 모니터 선택 가능)</li>
+          <li>• 파일명 형식: YY-MM-DD-HH:MM.png (예: 25-11-14-09:00.png)</li>
+          <li>• 같은 시간대에 여러 장 촬영 시 자동으로 (1), (2), (3)... 번호가 붙습니다</li>
           <li>• 같은 시간의 카운트다운은 하루에 한 번만 실행됩니다</li>
           <li>• 자정이 지나면 모든 트리거 상태가 초기화됩니다</li>
         </ul>
