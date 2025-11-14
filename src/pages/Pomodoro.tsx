@@ -239,9 +239,14 @@ export default function Pomodoro() {
   };
 
   const testNotification = () => {
+    console.log('🎯 testNotification 함수 호출됨!');
+    console.log('현재 알림 권한 상태:', notificationPermission);
+
     if (notificationPermission === 'granted') {
+      console.log('✅ 권한 있음 - sendNotification 호출');
       sendNotification('테스트 알림입니다. 알림이 정상적으로 작동합니다!');
     } else {
+      console.log('❌ 권한 없음 - requestNotificationPermission 호출');
       requestNotificationPermission();
     }
   };
