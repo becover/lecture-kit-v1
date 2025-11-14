@@ -10,9 +10,9 @@ export default function Dashboard() {
       color: 'border-green-500',
     },
     {
-      title: '뽀모도로 타이머',
-      description: '집중 시간 관리를 위한 뽀모도로 기법',
-      icon: '🍅',
+      title: '수업 시간표 알림',
+      description: '설정한 시간에 자동으로 알림을 받습니다',
+      icon: '🔔',
       to: '/pomodoro',
       color: 'border-red-500',
     },
@@ -56,7 +56,7 @@ export default function Dashboard() {
         <h2 className="text-2xl font-bold text-gray-800 mb-4">사용 가이드</h2>
         <ul className="space-y-2 text-gray-700">
           <li>• <strong>출석 체크:</strong> 수업 시작 시 학생들의 출석을 빠르게 확인하세요</li>
-          <li>• <strong>뽀모도로:</strong> 25분 집중 + 5분 휴식 사이클로 효율적인 학습 관리</li>
+          <li>• <strong>수업 시간표 알림:</strong> 쉬는 시간, 수업 시작/종료 시간에 자동 알림</li>
           <li>• <strong>타이머:</strong> 발표, 토론, 시험 등 다양한 활동의 시간 관리</li>
           <li>• <strong>설문:</strong> 실시간으로 학생들의 이해도와 피드백 확인</li>
           <li>• <strong>자료 업로드:</strong> 강의 자료를 쉽게 공유하고 관리</li>
