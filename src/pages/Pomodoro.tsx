@@ -46,15 +46,35 @@ export default function Pomodoro() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTime, setEditTime] = useState('');
   const [editMessage, setEditMessage] = useState('');
+  const [timeOffset, setTimeOffset] = useState(0);
+
+  // 서버 시간 동기화
+  useEffect(() => {
+    fetch('https://worldtimeapi.org/api/timezone/Asia/Seoul')
+      .then(res => res.json())
+      .then(data => {
+        const serverTime = new Date(data.datetime).getTime();
+        const clientTime = new Date().getTime();
+        const offset = serverTime - clientTime;
+        setTimeOffset(offset);
+        console.log('⏰ 시간 동기화:', `${offset}ms`);
+      })
+      .catch(() => console.warn('⚠️ 서버 시간 동기화 실패'));
+  }, []);
+
+  // 보정된 현재 시간
+  const getAccurateTime = useCallback(() => {
+    return new Date(new Date().getTime() + timeOffset);
+  }, [timeOffset]);
 
   // 현재 시간 업데이트
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      setCurrentTime(getAccurateTime());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [getAccurateTime]);
 
   // 시간대 저장
   useEffect(() => {
@@ -69,7 +89,7 @@ export default function Pomodoro() {
   // 자정에 notified 상태 초기화
   useEffect(() => {
     const checkMidnight = setInterval(() => {
-      const now = new Date();
+      const now = getAccurateTime();
       if (now.getHours() === 0 && now.getMinutes() === 0) {
         setTimeSlots(slots =>
           slots.map(slot => ({ ...slot, notified: false }))
@@ -78,7 +98,7 @@ export default function Pomodoro() {
     }, 60000); // 1분마다 체크
 
     return () => clearInterval(checkMidnight);
-  }, []);
+  }, [getAccurateTime]);
 
   // 알림 발송 함수
   const sendNotification = useCallback((message: string) => {
@@ -131,7 +151,7 @@ export default function Pomodoro() {
   useEffect(() => {
     if (!isActive) return;
 
-    const now = new Date();
+    const now = getAccurateTime();
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     timeSlots.forEach((slot) => {
@@ -145,7 +165,7 @@ export default function Pomodoro() {
         );
       }
     });
-  }, [currentTime, isActive, timeSlots, sendNotification]);
+  }, [currentTime, isActive, timeSlots, sendNotification, getAccurateTime]);
 
   const requestNotificationPermission = async () => {
     if (typeof Notification === 'undefined') {

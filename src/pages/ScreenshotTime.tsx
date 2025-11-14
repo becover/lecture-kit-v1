@@ -41,15 +41,41 @@ export default function ScreenshotTime() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isCountingDown, setIsCountingDown] = useState(false);
+  const [timeOffset, setTimeOffset] = useState(0); // 서버 시간과의 차이 (ms)
+
+  // 서버 시간 동기화
+  useEffect(() => {
+    fetch('https://worldtimeapi.org/api/timezone/Asia/Seoul')
+      .then(res => res.json())
+      .then(data => {
+        const serverTime = new Date(data.datetime).getTime();
+        const clientTime = new Date().getTime();
+        const offset = serverTime - clientTime;
+        setTimeOffset(offset);
+        console.log('⏰ 시간 동기화 완료:', {
+          serverTime: new Date(serverTime).toISOString(),
+          clientTime: new Date(clientTime).toISOString(),
+          offset: `${offset}ms`,
+        });
+      })
+      .catch(err => {
+        console.warn('⚠️ 서버 시간 동기화 실패, 클라이언트 시간 사용:', err);
+      });
+  }, []);
+
+  // 보정된 현재 시간 가져오기
+  const getAccurateTime = useCallback(() => {
+    return new Date(new Date().getTime() + timeOffset);
+  }, [timeOffset]);
 
   // 현재 시간 업데이트
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      setCurrentTime(getAccurateTime());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [getAccurateTime]);
 
   // 시간대 저장
   useEffect(() => {
@@ -64,7 +90,7 @@ export default function ScreenshotTime() {
   // 자정에 triggered 상태 초기화
   useEffect(() => {
     const checkMidnight = setInterval(() => {
-      const now = new Date();
+      const now = getAccurateTime();
       if (now.getHours() === 0 && now.getMinutes() === 0) {
         setTimeSlots(slots =>
           slots.map(slot => ({ ...slot, triggered: false }))
@@ -75,7 +101,7 @@ export default function ScreenshotTime() {
     }, 60000);
 
     return () => clearInterval(checkMidnight);
-  }, []);
+  }, [getAccurateTime]);
 
   // 알림음 재생
   const playBeep = useCallback(() => {
@@ -126,7 +152,7 @@ export default function ScreenshotTime() {
   useEffect(() => {
     if (!isActive || isCountingDown) return;
 
-    const now = new Date();
+    const now = getAccurateTime();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentSecond = now.getSeconds();
@@ -162,7 +188,7 @@ export default function ScreenshotTime() {
         );
       }
     });
-  }, [currentTime, isActive, timeSlots, isCountingDown]);
+  }, [currentTime, isActive, timeSlots, isCountingDown, getAccurateTime]);
 
   const toggleActive = () => {
     setIsActive(!isActive);
