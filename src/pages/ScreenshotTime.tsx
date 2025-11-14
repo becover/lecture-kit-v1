@@ -127,12 +127,31 @@ export default function ScreenshotTime() {
     if (!isActive || isCountingDown) return;
 
     const now = new Date();
-    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentSecond = now.getSeconds();
 
     timeSlots.forEach((slot) => {
-      if (slot.enabled && !slot.triggered && slot.time === currentTimeStr) {
-        // 카운트다운 시작 (60초)
-        setCountdown(60);
+      if (!slot.enabled || slot.triggered) return;
+
+      // 목표 시간 파싱
+      const [targetHour, targetMinute] = slot.time.split(':').map(Number);
+
+      // 목표 시간을 초 단위로 변환
+      const targetTimeInSeconds = targetHour * 3600 + targetMinute * 60;
+      // 현재 시간을 초 단위로 변환
+      const currentTimeInSeconds = currentHour * 3600 + currentMinute * 60 + currentSecond;
+
+      // 목표 시간 60초 전에 카운트다운 시작
+      const startTimeInSeconds = targetTimeInSeconds - 60;
+
+      // 정확히 60초 전일 때만 시작 (±2초 오차 허용)
+      if (Math.abs(currentTimeInSeconds - startTimeInSeconds) <= 2) {
+        console.log(`🎯 카운트다운 시작: ${slot.time}에 맞춰 정확히 실행`);
+
+        // 정확한 남은 시간 계산
+        const exactCountdown = targetTimeInSeconds - currentTimeInSeconds;
+        setCountdown(exactCountdown > 0 ? exactCountdown : 60);
         setIsCountingDown(true);
 
         // 트리거 상태 업데이트
