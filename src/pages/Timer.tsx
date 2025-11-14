@@ -24,6 +24,7 @@ export default function Timer() {
         setTimeLeft((time) => time - 1);
       }, 1000);
     } else if (timeLeft === 0 && isRunning) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsRunning(false);
       // 타이머 종료 알림
       if ('Notification' in window && Notification.permission === 'granted') {
