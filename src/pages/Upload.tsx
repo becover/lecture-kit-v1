@@ -17,7 +17,7 @@ export default function Upload() {
       name: '강의자료_1주차.pdf',
       size: '2.5 MB',
       type: 'PDF',
-      uploadedAt: '2024-01-15',
+      uploadedAt: '2025-01-15',
       category: '강의자료',
     },
   ]);
