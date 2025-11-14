@@ -46,6 +46,8 @@ export default function Pomodoro() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTime, setEditTime] = useState('');
   const [editMessage, setEditMessage] = useState('');
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
   // 현재 시간 업데이트
   useEffect(() => {
@@ -86,7 +88,13 @@ export default function Pomodoro() {
       permission: notificationPermission,
       hasNotificationAPI: typeof Notification !== 'undefined',
       message,
+      timestamp: new Date().toISOString(),
     });
+
+    // 화면 내 알림 모달 표시
+    setAlertMessage(message);
+    setShowAlert(true);
+    console.log('📢 화면 내 알림 모달 표시:', message);
 
     // 브라우저 시스템 알림
     if (notificationPermission === 'granted') {
@@ -105,7 +113,7 @@ export default function Pomodoro() {
           notification.close();
         };
 
-        console.log('✅ 시스템 알림 생성 성공');
+        console.log('✅ 시스템 알림 생성 성공', notification);
       } catch (error) {
         console.error('❌ 시스템 알림 생성 실패:', error);
       }
@@ -115,8 +123,8 @@ export default function Pomodoro() {
 
     // 소리 재생
     const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVanm7q1aFQ1Ln+Pxv3IeBi6Cz/PWhzYHImzB7+WaTg4NUqnl762cFAxKnuPvwnAhBSx/zvPYiDYHI3DB7uOaSQ4NUqbl761dFQ1Ln+PvwnAhBSyAz/PXhzUHIm/A7uKZSg0PVKjl7axdFQxLn+PvwnAhBSx/zvPYhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnEhBSyBz/PWhzUHIm/A7uSZSw4PU6fk7axcFQxLn+PwwnEhBiyAzvPWhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnAhBSyAzvPXiDUHIm/A7uOaSw4PU6fk7axdFQxLn+PvwnEhBSyAzvPWhzYHI2/A7uKZSw4PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHInDB7uOZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHInDB7uOZSg0PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHI3DB7uOZSQ0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxL');
-    audio.play().catch(() => {
-      console.log('⚠️ 오디오 재생 실패 (사용자 상호작용 필요)');
+    audio.play().catch((error) => {
+      console.log('⚠️ 오디오 재생 실패 (사용자 상호작용 필요):', error);
     });
   }, [notificationPermission]);
 
@@ -243,6 +251,25 @@ export default function Pomodoro() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* 화면 내 알림 모달 */}
+      {showAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 animate-bounce">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🔔</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">수업 알림</h2>
+              <p className="text-lg text-gray-700 mb-6">{alertMessage}</p>
+              <button
+                onClick={() => setShowAlert(false)}
+                className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-bold text-lg"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <Link to="/" className="text-indigo-600 hover:text-indigo-800 font-medium">
           ← 대시보드로 돌아가기
