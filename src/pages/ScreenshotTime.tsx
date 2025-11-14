@@ -42,6 +42,7 @@ export default function ScreenshotTime() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [timeOffset, setTimeOffset] = useState(0); // 서버 시간과의 차이 (ms)
+  const [isCapturing, setIsCapturing] = useState(false);
 
   // 서버 시간 동기화
   useEffect(() => {
@@ -228,6 +229,74 @@ export default function ScreenshotTime() {
     setIsCountingDown(true);
   };
 
+  // 스크린샷 캡처
+  const captureScreenshot = async () => {
+    try {
+      setIsCapturing(true);
+      console.log('📸 스크린샷 캡처 시작...');
+
+      // 화면 선택 (멀티 모니터 지원)
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: 'monitor', // 모니터 전체 화면
+        } as MediaTrackConstraints,
+        audio: false,
+      });
+
+      console.log('✅ 화면 스트림 획득 성공');
+
+      // video 엘리먼트 생성
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      // video 로드 대기
+      await new Promise<void>((resolve) => {
+        video.onloadedmetadata = () => resolve();
+      });
+
+      // canvas에 video 프레임 그리기
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        throw new Error('Canvas context를 생성할 수 없습니다');
+      }
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // 스트림 중지
+      stream.getTracks().forEach(track => track.stop());
+
+      // 이미지로 변환 및 다운로드
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          throw new Error('이미지 변환 실패');
+        }
+
+        const now = getAccurateTime();
+        const filename = `screenshot_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}.png`;
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        console.log('✅ 스크린샷 저장 완료:', filename);
+        setIsCapturing(false);
+      }, 'image/png');
+
+    } catch (error) {
+      console.error('❌ 스크린샷 캡처 실패:', error);
+      alert('스크린샷 캡처에 실패했습니다. 권한을 확인해주세요.');
+      setIsCapturing(false);
+    }
+  };
+
   const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
 
   return (
@@ -294,6 +363,13 @@ export default function ScreenshotTime() {
             }`}
           >
             {isActive ? '📸 타이머 활성화됨 (클릭하여 중지)' : '▶️ 타이머 시작'}
+          </button>
+          <button
+            onClick={captureScreenshot}
+            disabled={isCapturing}
+            className='px-6 py-4 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+          >
+            {isCapturing ? '📸 캡처 중...' : '📸 스크린샷'}
           </button>
           <button
             onClick={testCountdown}
@@ -367,6 +443,7 @@ export default function ScreenshotTime() {
           </li>
           <li>• 30초 남았을 때 알림음과 함께 알림이 표시됩니다</li>
           <li>• 10초부터는 매초마다 삐 소리가 납니다</li>
+          <li>• <strong>스크린샷 버튼</strong>을 누르면 전체 화면을 캡처할 수 있습니다 (멀티 모니터 선택 가능)</li>
           <li>• 같은 시간의 카운트다운은 하루에 한 번만 실행됩니다</li>
           <li>• 자정이 지나면 모든 트리거 상태가 초기화됩니다</li>
         </ul>
