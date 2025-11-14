@@ -1,11 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import * as tf from '@tensorflow/tfjs';
+import * as blazeface from '@tensorflow-models/blazeface';
 
 interface TimeSlot {
   id: number;
   time: string;
   enabled: boolean;
   triggered: boolean;
+}
+
+interface FaceDetectionResult {
+  faceCount: number;
+  warnings: string[];
+  hasSmallFaces: boolean;
+  hasCroppedFaces: boolean;
 }
 
 const DEFAULT_TIME_SLOTS: Omit<TimeSlot, 'id' | 'triggered'>[] = [
@@ -52,6 +61,29 @@ export default function ScreenshotTime() {
   const [filenamePrefix, setFilenamePrefix] = useState(() => {
     return localStorage.getItem('screenshot-filename-prefix') || '';
   });
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [faceDetectionEnabled, setFaceDetectionEnabled] = useState(() => {
+    const saved = localStorage.getItem('screenshot-face-detection-enabled');
+    return saved === 'true';
+  });
+  const modelRef = useRef<blazeface.BlazeFaceModel | null>(null);
+  const lastCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // BlazeFace 모델 로드
+  useEffect(() => {
+    const loadModel = async () => {
+      try {
+        console.log('🤖 얼굴 인식 모델 로딩 중...');
+        await tf.ready();
+        const model = await blazeface.load();
+        modelRef.current = model;
+        console.log('✅ 얼굴 인식 모델 로드 완료');
+      } catch (error) {
+        console.error('❌ 얼굴 인식 모델 로드 실패:', error);
+      }
+    };
+    loadModel();
+  }, []);
 
   // 서버 시간 동기화
   useEffect(() => {
@@ -105,6 +137,10 @@ export default function ScreenshotTime() {
   useEffect(() => {
     localStorage.setItem('screenshot-filename-prefix', filenamePrefix);
   }, [filenamePrefix]);
+
+  useEffect(() => {
+    localStorage.setItem('screenshot-face-detection-enabled', String(faceDetectionEnabled));
+  }, [faceDetectionEnabled]);
 
   // 자정에 triggered 상태 초기화
   useEffect(() => {
@@ -265,6 +301,82 @@ export default function ScreenshotTime() {
     }
   };
 
+  // 얼굴 인식 분석
+  const analyzeFaces = async (canvas: HTMLCanvasElement): Promise<FaceDetectionResult> => {
+    if (!modelRef.current) {
+      return {
+        faceCount: 0,
+        warnings: ['얼굴 인식 모델이 로드되지 않았습니다'],
+        hasSmallFaces: false,
+        hasCroppedFaces: false,
+      };
+    }
+
+    try {
+      const predictions = await modelRef.current.estimateFaces(canvas, false);
+      const faceCount = predictions.length;
+      const warnings: string[] = [];
+      let hasSmallFaces = false;
+      let hasCroppedFaces = false;
+
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const canvasArea = canvasWidth * canvasHeight;
+
+      // 각 얼굴 분석
+      predictions.forEach((prediction: any, index: number) => {
+        const [x1, y1] = prediction.topLeft as [number, number];
+        const [x2, y2] = prediction.bottomRight as [number, number];
+
+        const faceWidth = x2 - x1;
+        const faceHeight = y2 - y1;
+        const faceArea = faceWidth * faceHeight;
+
+        // 얼굴 크기 비율 (전체 화면 대비)
+        const faceRatio = faceArea / canvasArea;
+
+        // 얼굴이 너무 작은지 체크 (화면의 1% 미만)
+        if (faceRatio < 0.01) {
+          warnings.push(`얼굴 ${index + 1}: 얼굴이 너무 작습니다 (화면 비율: ${(faceRatio * 100).toFixed(2)}%)`);
+          hasSmallFaces = true;
+        }
+
+        // 가장자리 여백 (5%)
+        const edgeMargin = 0.05;
+        const leftEdge = canvasWidth * edgeMargin;
+        const rightEdge = canvasWidth * (1 - edgeMargin);
+        const topEdge = canvasHeight * edgeMargin;
+        const bottomEdge = canvasHeight * (1 - edgeMargin);
+
+        // 얼굴이 화면 가장자리에서 잘리는지 체크
+        if (x1 < leftEdge || x2 > rightEdge || y1 < topEdge || y2 > bottomEdge) {
+          warnings.push(`얼굴 ${index + 1}: 얼굴이 화면 가장자리에 위치하여 잘릴 수 있습니다`);
+          hasCroppedFaces = true;
+        }
+      });
+
+      // 얼굴 개수에 따른 메시지
+      if (faceCount === 0) {
+        warnings.unshift('⚠️ 감지된 얼굴이 없습니다');
+      }
+
+      return {
+        faceCount,
+        warnings,
+        hasSmallFaces,
+        hasCroppedFaces,
+      };
+    } catch (error) {
+      console.error('❌ 얼굴 분석 실패:', error);
+      return {
+        faceCount: 0,
+        warnings: ['얼굴 분석 중 오류가 발생했습니다'],
+        hasSmallFaces: false,
+        hasCroppedFaces: false,
+      };
+    }
+  };
+
   // 파일명 생성 (YY-MM-DD-HH-MM 형식 + 중복 처리)
   const generateFilename = (now: Date): string => {
     const yy = String(now.getFullYear()).slice(-2);
@@ -336,6 +448,9 @@ export default function ScreenshotTime() {
       // 스트림 중지
       stream.getTracks().forEach(track => track.stop());
 
+      // 캔버스 저장 (재촬영용)
+      lastCanvasRef.current = canvas;
+
       // 이미지로 변환
       canvas.toBlob(async (blob) => {
         if (!blob) {
@@ -386,6 +501,22 @@ export default function ScreenshotTime() {
         }
 
         setIsCapturing(false);
+
+        // 얼굴 인식이 활성화된 경우 분석 실행
+        if (faceDetectionEnabled) {
+          setIsAnalyzing(true);
+          console.log('🔍 얼굴 분석 시작...');
+          const result = await analyzeFaces(canvas);
+          setIsAnalyzing(false);
+
+          // 결과 알림
+          if (result.warnings.length > 0) {
+            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${result.faceCount}개\n\n${result.warnings.join('\n')}`;
+            alert(warningMsg);
+          } else {
+            alert(`얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`);
+          }
+        }
       }, 'image/png');
 
     } catch (error) {
@@ -404,6 +535,116 @@ export default function ScreenshotTime() {
     a.click();
     URL.revokeObjectURL(url);
     console.log('✅ 스크린샷 다운로드 완료:', filename);
+  };
+
+  // 재촬영 (마지막 캔버스 재사용)
+  const retakeScreenshot = async () => {
+    if (!lastCanvasRef.current) {
+      alert('재촬영할 이미지가 없습니다. 먼저 스크린샷을 찍어주세요.');
+      return;
+    }
+
+    try {
+      setIsCapturing(true);
+      console.log('🔄 스크린샷 재촬영 (새로 캡처)...');
+
+      // 새로운 화면 캡처
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: 'monitor',
+        } as MediaTrackConstraints,
+        audio: false,
+      });
+
+      console.log('✅ 화면 스트림 획득 성공');
+
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      await new Promise<void>((resolve) => {
+        video.onloadedmetadata = () => resolve();
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        throw new Error('Canvas context를 생성할 수 없습니다');
+      }
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      stream.getTracks().forEach(track => track.stop());
+
+      // 캔버스 저장
+      lastCanvasRef.current = canvas;
+
+      // 이미지로 변환 및 저장
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          throw new Error('이미지 변환 실패');
+        }
+
+        const now = getAccurateTime();
+        const filename = generateFilename(now);
+
+        // 저장
+        if (saveDirectory && 'showDirectoryPicker' in window) {
+          try {
+            const permission = await (saveDirectory as any).queryPermission({ mode: 'readwrite' });
+            if (permission === 'granted') {
+              const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
+              const writable = await fileHandle.createWritable();
+              await writable.write(blob);
+              await writable.close();
+              console.log('✅ 스크린샷 재저장 완료 (폴더):', filename);
+            } else if (permission === 'prompt') {
+              const newPermission = await (saveDirectory as any).requestPermission({ mode: 'readwrite' });
+              if (newPermission === 'granted') {
+                const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                console.log('✅ 스크린샷 재저장 완료 (폴더):', filename);
+              } else {
+                throw new Error('폴더 쓰기 권한이 거부되었습니다');
+              }
+            } else {
+              throw new Error('폴더 쓰기 권한이 없습니다');
+            }
+          } catch (err) {
+            console.error('폴더 저장 실패, 다운로드로 전환:', err);
+            downloadBlob(blob, filename);
+          }
+        } else {
+          downloadBlob(blob, filename);
+        }
+
+        setIsCapturing(false);
+
+        // 얼굴 인식이 활성화된 경우 분석 실행
+        if (faceDetectionEnabled) {
+          setIsAnalyzing(true);
+          console.log('🔍 얼굴 분석 시작...');
+          const result = await analyzeFaces(canvas);
+          setIsAnalyzing(false);
+
+          if (result.warnings.length > 0) {
+            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${result.faceCount}개\n\n${result.warnings.join('\n')}`;
+            alert(warningMsg);
+          } else {
+            alert(`얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`);
+          }
+        }
+      }, 'image/png');
+
+    } catch (error) {
+      console.error('❌ 스크린샷 재촬영 실패:', error);
+      alert('스크린샷 재촬영에 실패했습니다. 권한을 확인해주세요.');
+      setIsCapturing(false);
+    }
   };
 
   const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
@@ -475,10 +716,17 @@ export default function ScreenshotTime() {
           </button>
           <button
             onClick={captureScreenshot}
-            disabled={isCapturing}
+            disabled={isCapturing || isAnalyzing}
             className='px-6 py-4 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
           >
-            {isCapturing ? '📸 캡처 중...' : '📸 스크린샷'}
+            {isCapturing ? '📸 캡처 중...' : isAnalyzing ? '🔍 분석 중...' : '📸 스크린샷'}
+          </button>
+          <button
+            onClick={retakeScreenshot}
+            disabled={isCapturing || isAnalyzing || !lastCanvasRef.current}
+            className='px-6 py-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+          >
+            {isCapturing ? '📸 캡처 중...' : isAnalyzing ? '🔍 분석 중...' : '🔄 재촬영'}
           </button>
           <button
             onClick={testCountdown}
@@ -540,6 +788,23 @@ export default function ScreenshotTime() {
                 </p>
               </div>
             )}
+          </div>
+
+          <div className='bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3'>
+            <label className='flex items-center cursor-pointer'>
+              <input
+                type='checkbox'
+                checked={faceDetectionEnabled}
+                onChange={(e) => setFaceDetectionEnabled(e.target.checked)}
+                className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+              />
+              <span className='ml-2 text-sm font-medium text-gray-700'>
+                🤖 얼굴 인식 활성화
+              </span>
+            </label>
+            <p className='text-xs text-gray-500 mt-2 ml-6'>
+              스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
+            </p>
           </div>
 
           <div className='flex gap-2'>
@@ -609,7 +874,9 @@ export default function ScreenshotTime() {
           <li>• 10초부터는 매초마다 삐 소리가 납니다</li>
           <li>• <strong>폴더 선택</strong>으로 스크린샷 저장 위치 지정 (Chrome/Edge만)</li>
           <li>• <strong>프리픽스 사용</strong>으로 파일명 앞에 원하는 텍스트 추가 가능 (예: lecture_25-11-14-09-00.png)</li>
+          <li>• <strong>얼굴 인식</strong>을 활성화하면 스크린샷 촬영 후 자동으로 얼굴을 감지하여 결과를 알려드립니다</li>
           <li>• <strong>스크린샷 버튼</strong>을 누르면 전체 화면을 캡처합니다 (멀티 모니터 선택 가능)</li>
+          <li>• <strong>재촬영 버튼</strong>으로 문제가 있을 때 다시 촬영할 수 있습니다</li>
           <li>• 파일명 형식: YY-MM-DD-HH-MM.png (예: 25-11-14-09-00.png)</li>
           <li>• 같은 시간대에 여러 장 촬영 시 자동으로 (1), (2), (3)... 번호가 붙습니다</li>
           <li>• 같은 시간의 카운트다운은 하루에 한 번만 실행됩니다</li>
