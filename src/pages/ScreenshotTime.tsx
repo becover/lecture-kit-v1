@@ -45,6 +45,13 @@ export default function ScreenshotTime() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [saveDirectory, setSaveDirectory] = useState<FileSystemDirectoryHandle | null>(null);
   const [savePath, setSavePath] = useState<string>('브라우저 다운로드 폴더');
+  const [usePrefixEnabled, setUsePrefixEnabled] = useState(() => {
+    const saved = localStorage.getItem('screenshot-use-prefix');
+    return saved === 'true';
+  });
+  const [filenamePrefix, setFilenamePrefix] = useState(() => {
+    return localStorage.getItem('screenshot-filename-prefix') || '';
+  });
 
   // 서버 시간 동기화
   useEffect(() => {
@@ -89,6 +96,15 @@ export default function ScreenshotTime() {
   useEffect(() => {
     localStorage.setItem('screenshot-time-active', String(isActive));
   }, [isActive]);
+
+  // 프리픽스 설정 저장
+  useEffect(() => {
+    localStorage.setItem('screenshot-use-prefix', String(usePrefixEnabled));
+  }, [usePrefixEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('screenshot-filename-prefix', filenamePrefix);
+  }, [filenamePrefix]);
 
   // 자정에 triggered 상태 초기화
   useEffect(() => {
@@ -267,11 +283,14 @@ export default function ScreenshotTime() {
     const newCounter = counter + 1;
     localStorage.setItem(counterKey, String(newCounter));
 
+    // 프리픽스 적용
+    const prefix = usePrefixEnabled && filenamePrefix ? `${filenamePrefix}_` : '';
+
     // 파일명 생성
     if (newCounter === 1) {
-      return `${baseFilename}.png`;
+      return `${prefix}${baseFilename}.png`;
     } else {
-      return `${baseFilename}(${newCounter - 1}).png`;
+      return `${prefix}${baseFilename}(${newCounter - 1}).png`;
     }
   };
 
@@ -466,6 +485,41 @@ export default function ScreenshotTime() {
             </p>
           </div>
 
+          <div className='bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3'>
+            <div className='flex items-center justify-between mb-3'>
+              <label className='flex items-center cursor-pointer'>
+                <input
+                  type='checkbox'
+                  checked={usePrefixEnabled}
+                  onChange={(e) => setUsePrefixEnabled(e.target.checked)}
+                  className='w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500'
+                />
+                <span className='ml-2 text-sm font-medium text-gray-700'>
+                  파일명 프리픽스 사용
+                </span>
+              </label>
+            </div>
+            {usePrefixEnabled && (
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1'>
+                  프리픽스
+                </label>
+                <input
+                  type='text'
+                  value={filenamePrefix}
+                  onChange={(e) => setFilenamePrefix(e.target.value)}
+                  placeholder='예: lecture, class'
+                  className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                />
+                <p className='text-xs text-gray-500 mt-2'>
+                  {filenamePrefix
+                    ? `파일명 예시: ${filenamePrefix}_25-11-14-09:00.png`
+                    : '프리픽스를 입력하세요'}
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className='flex gap-2'>
             <button
               onClick={resetToDefault}
@@ -532,6 +586,7 @@ export default function ScreenshotTime() {
           <li>• 30초 남았을 때 알림음과 함께 알림이 표시됩니다</li>
           <li>• 10초부터는 매초마다 삐 소리가 납니다</li>
           <li>• <strong>폴더 선택</strong>으로 스크린샷 저장 위치 지정 (Chrome/Edge만)</li>
+          <li>• <strong>프리픽스 사용</strong>으로 파일명 앞에 원하는 텍스트 추가 가능 (예: lecture_25-11-14-09:00.png)</li>
           <li>• <strong>스크린샷 버튼</strong>을 누르면 전체 화면을 캡처합니다 (멀티 모니터 선택 가능)</li>
           <li>• 파일명 형식: YY-MM-DD-HH:MM.png (예: 25-11-14-09:00.png)</li>
           <li>• 같은 시간대에 여러 장 촬영 시 자동으로 (1), (2), (3)... 번호가 붙습니다</li>
