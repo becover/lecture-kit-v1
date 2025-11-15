@@ -93,6 +93,10 @@ export default function ScreenshotTime() {
     const saved = localStorage.getItem('screenshot-ocr-enabled');
     return saved === 'false'; // 기본값: 비활성화 (OCR이 느려서)
   });
+  const [captureDelayEnabled, setCaptureDelayEnabled] = useState(() => {
+    const saved = localStorage.getItem('screenshot-capture-delay');
+    return saved === 'true'; // 기본값: 활성화 (1초 딜레이)
+  });
   const modelRef = useRef<boolean>(false);
   const lastCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [testImage, setTestImage] = useState<File | null>(null);
@@ -101,6 +105,11 @@ export default function ScreenshotTime() {
   );
   const [testCanvasUrl, setTestCanvasUrl] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  // 미리보기 상태
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [previewResult, setPreviewResult] = useState<FaceDetectionResult | null>(null);
 
   // @vladmandic/face-api 모델 로드
   useEffect(() => {
@@ -197,6 +206,10 @@ export default function ScreenshotTime() {
   useEffect(() => {
     localStorage.setItem('screenshot-ocr-enabled', String(ocrEnabled));
   }, [ocrEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('screenshot-capture-delay', String(captureDelayEnabled));
+  }, [captureDelayEnabled]);
 
   // 자정에 triggered 상태 초기화
   useEffect(() => {
@@ -637,6 +650,12 @@ export default function ScreenshotTime() {
 
       console.log('✅ 화면 스트림 획득 성공');
 
+      // 화면 선택 후 딜레이 (옵션 활성화된 경우)
+      if (captureDelayEnabled) {
+        console.log('⏳ 1초 대기 중... (화면 전환 시간)');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
       // video 엘리먼트 생성
       const video = document.createElement('video');
       video.srcObject = stream;
@@ -726,28 +745,25 @@ export default function ScreenshotTime() {
 
         setIsCapturing(false);
 
+        // 미리보기 이미지 URL 생성
+        const previewUrl = URL.createObjectURL(blob);
+        setPreviewImageUrl(previewUrl);
+        setShowPreview(true);
+        setPreviewResult(null); // 초기화
+
         // 얼굴 인식이 활성화된 경우 분석 실행
         if (faceDetectionEnabled) {
           setIsAnalyzing(true);
           console.log('🔍 얼굴 분석 시작...');
           const result = await analyzeFaces(canvas);
           setIsAnalyzing(false);
-
-          // 결과 알림
-          if (result.faceCount === -1) {
-            // 스킵된 경우
-            alert('✅ ' + result.warnings[0]);
-          } else if (result.warnings.length > 0) {
-            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${
-              result.faceCount
-            }개\n\n${result.warnings.join('\n')}`;
-            alert(warningMsg);
-          } else {
-            alert(
-              `얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`
-            );
-          }
+          setPreviewResult(result); // 미리보기에 저장
         }
+
+        // 5초 후 미리보기 자동 숨김
+        setTimeout(() => {
+          setShowPreview(false);
+        }, 5000);
       }, 'image/png');
     } catch (error) {
       console.error('❌ 스크린샷 캡처 실패:', error);
@@ -787,6 +803,12 @@ export default function ScreenshotTime() {
       });
 
       console.log('✅ 화면 스트림 획득 성공');
+
+      // 화면 선택 후 딜레이 (옵션 활성화된 경우)
+      if (captureDelayEnabled) {
+        console.log('⏳ 1초 대기 중... (화면 전환 시간)');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
 
       const video = document.createElement('video');
       video.srcObject = stream;
@@ -864,27 +886,25 @@ export default function ScreenshotTime() {
 
         setIsCapturing(false);
 
+        // 미리보기 이미지 URL 생성
+        const previewUrl = URL.createObjectURL(blob);
+        setPreviewImageUrl(previewUrl);
+        setShowPreview(true);
+        setPreviewResult(null); // 초기화
+
         // 얼굴 인식이 활성화된 경우 분석 실행
         if (faceDetectionEnabled) {
           setIsAnalyzing(true);
           console.log('🔍 얼굴 분석 시작...');
           const result = await analyzeFaces(canvas);
           setIsAnalyzing(false);
-
-          if (result.faceCount === -1) {
-            // 스킵된 경우
-            alert('✅ ' + result.warnings[0]);
-          } else if (result.warnings.length > 0) {
-            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${
-              result.faceCount
-            }개\n\n${result.warnings.join('\n')}`;
-            alert(warningMsg);
-          } else {
-            alert(
-              `얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`
-            );
-          }
+          setPreviewResult(result); // 미리보기에 저장
         }
+
+        // 5초 후 미리보기 자동 숨김
+        setTimeout(() => {
+          setShowPreview(false);
+        }, 5000);
       }, 'image/png');
     } catch (error) {
       console.error('❌ 스크린샷 재촬영 실패:', error);
@@ -1166,6 +1186,21 @@ export default function ScreenshotTime() {
                 <div
                   className={`${colors.card} ${colors.border} border rounded-lg p-4 mb-3`}
                 >
+                  <label className='flex items-center cursor-pointer mb-3'>
+                    <input
+                      type='checkbox'
+                      checked={captureDelayEnabled}
+                      onChange={(e) => setCaptureDelayEnabled(e.target.checked)}
+                      className='w-4 h-4 border-gray-300 rounded focus:ring-2'
+                    />
+                    <span className={`ml-2 text-sm font-medium ${colors.text}`}>
+                      ⏱ 화면 선택 후 1초 대기 (모니터 1대용)
+                    </span>
+                  </label>
+                  <p className={`text-xs ${colors.textSecondary} ml-6 mb-3`}>
+                    화면 선택 창에서 화면을 선택한 후 1초 뒤에 캡처됩니다. 줌으로 전환할 시간을 확보할 수 있습니다.
+                  </p>
+
                   <label className='flex items-center cursor-pointer'>
                     <input
                       type='checkbox'
@@ -1427,6 +1462,141 @@ export default function ScreenshotTime() {
           </div>
         </div>
       </div>
+
+      {/* 미리보기 (우하단) */}
+      {showPreview && previewImageUrl && (
+        <div className="fixed bottom-4 right-4 z-40 bg-white rounded-lg shadow-2xl border-4 border-indigo-500 overflow-hidden">
+          <div className="relative">
+            {/* 미리보기 이미지 */}
+            <img
+              src={previewImageUrl}
+              alt="Screenshot preview"
+              className="w-64 h-48 object-contain cursor-pointer"
+              onClick={() => setShowModal(true)}
+            />
+
+            {/* 분석 중 오버레이 */}
+            {isAnalyzing && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="text-white text-sm font-medium">
+                  🔍 분석 중...
+                </div>
+              </div>
+            )}
+
+            {/* 닫기 버튼 */}
+            <button
+              onClick={() => setShowPreview(false)}
+              className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+            >
+              ×
+            </button>
+
+            {/* 분석 결과 간략 표시 */}
+            {!isAnalyzing && previewResult && (
+              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-2 text-xs">
+                {previewResult.faceCount === -1 ? (
+                  <span>✅ 스킵됨</span>
+                ) : (
+                  <span>👤 {previewResult.faceCount}명 인식</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 클릭하여 확대 안내 */}
+          <div className="bg-indigo-50 px-3 py-1 text-xs text-indigo-700 text-center">
+            클릭하여 확대 👆
+          </div>
+        </div>
+      )}
+
+      {/* 확대 모달 */}
+      {showModal && previewImageUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className={`${colors.card} rounded-lg shadow-2xl max-w-6xl max-h-[90vh] overflow-auto`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className={`flex justify-between items-center p-4 border-b ${colors.border}`}>
+              <h3 className={`text-xl font-bold ${colors.text}`}>📸 스크린샷 미리보기</h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div className="p-4">
+              <img
+                src={previewImageUrl}
+                alt="Screenshot full view"
+                className="w-full h-auto"
+              />
+
+              {/* 분석 결과 표시 */}
+              {previewResult && (
+                <div className={`mt-4 p-4 ${colors.card} rounded-lg ${colors.border} border-2`}>
+                  <h4 className={`font-bold ${colors.text} mb-3 text-lg`}>
+                    📊 분석 결과
+                  </h4>
+                  <div className='text-sm space-y-2'>
+                    {previewResult.faceCount === -1 ? (
+                      <p className={`font-medium ${colors.link} text-base`}>
+                        ✅ {previewResult.warnings[0]}
+                      </p>
+                    ) : (
+                      <>
+                        <p className={`font-medium ${colors.text} text-base`}>
+                          감지된 얼굴:{' '}
+                          <span className={`${colors.link} font-bold text-xl`}>
+                            {previewResult.faceCount}개
+                          </span>
+                        </p>
+                        {previewResult.warnings.length > 0 && (
+                          <div className='mt-3'>
+                            <p className='font-medium text-orange-600 mb-2 text-base'>
+                              ⚠️ 경고:
+                            </p>
+                            <ul className={`list-disc list-inside ${colors.textSecondary} space-y-1 ml-2`}>
+                              {previewResult.warnings.map((warning, idx) => (
+                                <li key={idx} className='text-sm'>
+                                  {warning}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {previewResult.warnings.length === 0 && previewResult.faceCount > 0 && (
+                          <p className='text-green-600 font-medium mt-3 text-base'>
+                            ✅ 모든 얼굴이 정상적으로 감지되었습니다!
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className={`flex justify-end gap-2 p-4 border-t ${colors.border}`}>
+              <button
+                onClick={() => setShowModal(false)}
+                className={`px-4 py-2 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium`}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
