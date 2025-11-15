@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as faceapi from '@vladmandic/face-api';
 import Tesseract from 'tesseract.js';
 import { useTheme } from '../context/ThemeContext';
+import { playSound, SOUNDS, type SoundType } from '../utils/sounds';
 
 interface TimeSlot {
   id: number;
@@ -96,6 +97,10 @@ export default function ScreenshotTime() {
   const [captureDelayEnabled, setCaptureDelayEnabled] = useState(() => {
     const saved = localStorage.getItem('screenshot-capture-delay');
     return saved === 'true'; // 기본값: 활성화 (1초 딜레이)
+  });
+  const [soundType, setSoundType] = useState<SoundType>(() => {
+    const saved = localStorage.getItem('screenshot-sound-type');
+    return (saved as SoundType) || 'beep';
   });
   const modelRef = useRef<boolean>(false);
   const lastCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -211,6 +216,10 @@ export default function ScreenshotTime() {
     localStorage.setItem('screenshot-capture-delay', String(captureDelayEnabled));
   }, [captureDelayEnabled]);
 
+  useEffect(() => {
+    localStorage.setItem('screenshot-sound-type', soundType);
+  }, [soundType]);
+
   // 자정에 triggered 상태 초기화
   useEffect(() => {
     const checkMidnight = setInterval(() => {
@@ -229,13 +238,8 @@ export default function ScreenshotTime() {
 
   // 알림음 재생
   const playBeep = useCallback(() => {
-    const audio = new Audio(
-      'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVanm7q1aFQ1Ln+Pxv3IeBi6Cz/PWhzYHImzB7+WaTg4NUqnl762cFAxKnuPvwnAhBSx/zvPYiDYHI3DB7uOaSQ4NUqbl761dFQ1Ln+PvwnAhBSyAz/PXhzUHIm/A7uKZSg0PVKjl7axdFQxLn+PvwnAhBSx/zvPYhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnEhBSyBz/PWhzUHIm/A7uSZSw4PU6fk7axcFQxLn+PwwnEhBiyAzvPWhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnAhBSyAzvPXiDUHIm/A7uOaSw4PU6fk7axdFQxLn+PvwnEhBSyAzvPWhzYHI2/A7uKZSw4PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHInDB7uOZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHInDB7uOZSg0PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHI3DB7uOZSQ0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxL'
-    );
-    audio.play().catch(() => {
-      console.log('⚠️ 오디오 재생 실패');
-    });
-  }, []);
+    playSound(soundType);
+  }, [soundType]);
 
   // 30초 알림
   const notify30Seconds = useCallback(() => {
@@ -1200,6 +1204,29 @@ export default function ScreenshotTime() {
                   <p className={`text-xs ${colors.textSecondary} ml-6 mb-3`}>
                     화면 선택 창에서 화면을 선택한 후 1초 뒤에 캡처됩니다. 줌으로 전환할 시간을 확보할 수 있습니다.
                   </p>
+
+                  <div className='mb-3'>
+                    <label className={`text-sm font-medium ${colors.text} block mb-2`}>
+                      🔊 알림음 선택
+                    </label>
+                    <select
+                      value={soundType}
+                      onChange={(e) => setSoundType(e.target.value as SoundType)}
+                      className={`w-full px-3 py-2 text-sm ${colors.card} ${colors.text} ${colors.border} border rounded-md focus:outline-none focus:ring-2 transition-all`}
+                    >
+                      {(Object.keys(SOUNDS) as SoundType[]).map((key) => (
+                        <option key={key} value={key}>
+                          {SOUNDS[key].name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => playSound(soundType)}
+                      className={`mt-2 px-3 py-1 text-xs ${colors.secondary} ${colors.secondaryHover} text-white rounded transition-colors`}
+                    >
+                      🎵 미리 듣기
+                    </button>
+                  </div>
 
                   <label className='flex items-center cursor-pointer'>
                     <input

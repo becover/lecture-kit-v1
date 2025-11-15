@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { playSound, SOUNDS, type SoundType } from '../utils/sounds';
 
 interface TimeSlot {
   id: number;
@@ -50,6 +51,10 @@ export default function Pomodoro() {
   const [editTime, setEditTime] = useState('');
   const [editMessage, setEditMessage] = useState('');
   const [timeOffset, setTimeOffset] = useState(0);
+  const [soundType, setSoundType] = useState<SoundType>(() => {
+    const saved = localStorage.getItem('pomodoro-sound-type');
+    return (saved as SoundType) || 'ding';
+  });
 
   // 서버 시간 동기화
   useEffect(() => {
@@ -101,6 +106,11 @@ export default function Pomodoro() {
   useEffect(() => {
     localStorage.setItem('lecture-notifications-active', String(isActive));
   }, [isActive]);
+
+  // 알림음 저장
+  useEffect(() => {
+    localStorage.setItem('pomodoro-sound-type', soundType);
+  }, [soundType]);
 
   // 자정에 notified 상태 및 알림 활성화 초기화
   useEffect(() => {
@@ -166,11 +176,8 @@ export default function Pomodoro() {
     }
 
     // 소리 재생
-    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVanm7q1aFQ1Ln+Pxv3IeBi6Cz/PWhzYHImzB7+WaTg4NUqnl762cFAxKnuPvwnAhBSx/zvPYiDYHI3DB7uOaSQ4NUqbl761dFQ1Ln+PvwnAhBSyAz/PXhzUHIm/A7uKZSg0PVKjl7axdFQxLn+PvwnAhBSx/zvPYhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnEhBSyBz/PWhzUHIm/A7uSZSw4PU6fk7axcFQxLn+PwwnEhBiyAzvPWhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnAhBSyAzvPXiDUHIm/A7uOaSw4PU6fk7axdFQxLn+PvwnEhBSyAzvPWhzYHI2/A7uKZSw4PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHInDB7uOZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHInDB7uOZSg0PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHI3DB7uOZSQ0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxL');
-    audio.play().catch((error) => {
-      console.log('⚠️ 오디오 재생 실패 (사용자 상호작용 필요):', error);
-    });
-  }, [notificationPermission]);
+    playSound(soundType);
+  }, [notificationPermission, soundType]);
 
   // 알림 체크
   useEffect(() => {
@@ -390,6 +397,29 @@ export default function Pomodoro() {
             className={`px-4 py-2 ${colors.accent} ${colors.accentHover} text-white rounded-lg transition-colors font-medium`}
           >
             기본값으로 초기화
+          </button>
+        </div>
+
+        <div className='mb-3'>
+          <label className={`text-sm font-medium ${colors.text} block mb-2`}>
+            🔊 알림음 선택
+          </label>
+          <select
+            value={soundType}
+            onChange={(e) => setSoundType(e.target.value as SoundType)}
+            className={`w-full px-3 py-2 text-sm ${colors.card} ${colors.text} ${colors.border} border rounded-md focus:outline-none focus:ring-2 transition-all`}
+          >
+            {(Object.keys(SOUNDS) as SoundType[]).map((key) => (
+              <option key={key} value={key}>
+                {SOUNDS[key].name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => playSound(soundType)}
+            className={`mt-2 px-3 py-1 text-xs ${colors.secondary} ${colors.secondaryHover} text-white rounded transition-colors`}
+          >
+            🎵 미리 듣기
           </button>
         </div>
       </div>
