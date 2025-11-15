@@ -50,16 +50,29 @@ export default function Pomodoro() {
 
   // 서버 시간 동기화
   useEffect(() => {
-    fetch('https://worldtimeapi.org/api/timezone/Asia/Seoul')
-      .then(res => res.json())
-      .then(data => {
-        const serverTime = new Date(data.datetime).getTime();
+    const syncTime = async () => {
+      try {
+        const response = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Seoul');
+        if (!response.ok) throw new Error('Time sync failed');
+
+        const data = await response.json();
+        const serverTime = new Date(data.dateTime).getTime();
         const clientTime = new Date().getTime();
         const offset = serverTime - clientTime;
+
         setTimeOffset(offset);
-        console.log('⏰ 시간 동기화:', `${offset}ms`);
-      })
-      .catch(() => console.warn('⚠️ 서버 시간 동기화 실패'));
+        console.log('⏰ 시간 동기화 완료:', {
+          serverTime: new Date(serverTime).toISOString(),
+          clientTime: new Date(clientTime).toISOString(),
+          offset: `${offset}ms`
+        });
+      } catch {
+        console.warn('⚠️ 서버 시간 동기화 실패, 클라이언트 시간 사용');
+        setTimeOffset(0);
+      }
+    };
+
+    syncTime();
   }, []);
 
   // 보정된 현재 시간
@@ -86,14 +99,23 @@ export default function Pomodoro() {
     localStorage.setItem('lecture-notifications-active', String(isActive));
   }, [isActive]);
 
-  // 자정에 notified 상태 초기화
+  // 자정에 notified 상태 및 알림 활성화 초기화
   useEffect(() => {
     const checkMidnight = setInterval(() => {
       const now = getAccurateTime();
       if (now.getHours() === 0 && now.getMinutes() === 0) {
+        console.log('🌙 자정 도달 - 알림 상태 초기화');
+
+        // notified 상태 초기화
         setTimeSlots(slots =>
           slots.map(slot => ({ ...slot, notified: false }))
         );
+
+        // 알림 활성화 상태 초기화
+        setIsActive(false);
+        localStorage.setItem('lecture-notifications-active', 'false');
+
+        console.log('✅ 자정 초기화 완료 - 알림이 비활성화되었습니다');
       }
     }, 60000); // 1분마다 체크
 
