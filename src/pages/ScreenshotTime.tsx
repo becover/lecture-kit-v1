@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import * as tf from '@tensorflow/tfjs';
-import * as blazeface from '@tensorflow-models/blazeface';
+import * as faceapi from 'face-api.js';
 
 interface TimeSlot {
   id: number;
@@ -66,21 +66,25 @@ export default function ScreenshotTime() {
     const saved = localStorage.getItem('screenshot-face-detection-enabled');
     return saved === 'true';
   });
-  const modelRef = useRef<blazeface.BlazeFaceModel | null>(null);
+  const modelRef = useRef<boolean>(false);
   const lastCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [testImage, setTestImage] = useState<File | null>(null);
   const [testResult, setTestResult] = useState<FaceDetectionResult | null>(null);
   const [testCanvasUrl, setTestCanvasUrl] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
-  // BlazeFace 모델 로드
+  // face-api.js 모델 로드
   useEffect(() => {
     const loadModel = async () => {
       try {
         console.log('🤖 얼굴 인식 모델 로딩 중...');
         await tf.ready();
-        const model = await blazeface.load();
-        modelRef.current = model;
+
+        // face-api.js 모델 로드 (CDN에서)
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+        await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+
+        modelRef.current = true;
         console.log('✅ 얼굴 인식 모델 로드 완료');
       } catch (error) {
         console.error('❌ 얼굴 인식 모델 로드 실패:', error);
@@ -317,8 +321,16 @@ export default function ScreenshotTime() {
     }
 
     try {
-      const predictions = await modelRef.current.estimateFaces(canvas, false);
-      const faceCount = predictions.length;
+      // face-api.js로 얼굴 감지 (작은 얼굴도 감지하기 위해 옵션 조정)
+      const detections = await faceapi.detectAllFaces(
+        canvas,
+        new faceapi.SsdMobilenetv1Options({
+          minConfidence: 0.3, // 신뢰도 임계값 낮춤 (기본 0.5)
+          maxResults: 100, // 최대 100개 얼굴까지 감지
+        })
+      );
+
+      const faceCount = detections.length;
       const warnings: string[] = [];
       let hasSmallFaces = false;
       let hasCroppedFaces = false;
@@ -328,19 +340,22 @@ export default function ScreenshotTime() {
       const canvasArea = canvasWidth * canvasHeight;
 
       // 각 얼굴 분석
-      predictions.forEach((prediction: any, index: number) => {
-        const [x1, y1] = prediction.topLeft as [number, number];
-        const [x2, y2] = prediction.bottomRight as [number, number];
+      detections.forEach((detection, index: number) => {
+        const box = detection.box;
+        const x1 = box.x;
+        const y1 = box.y;
+        const x2 = box.x + box.width;
+        const y2 = box.y + box.height;
 
-        const faceWidth = x2 - x1;
-        const faceHeight = y2 - y1;
+        const faceWidth = box.width;
+        const faceHeight = box.height;
         const faceArea = faceWidth * faceHeight;
 
         // 얼굴 크기 비율 (전체 화면 대비)
         const faceRatio = faceArea / canvasArea;
 
-        // 얼굴이 너무 작은지 체크 (화면의 1% 미만)
-        if (faceRatio < 0.01) {
+        // 얼굴이 너무 작은지 체크 (화면의 0.5% 미만으로 낮춤)
+        if (faceRatio < 0.005) {
           warnings.push(`얼굴 ${index + 1}: 얼굴이 너무 작습니다 (화면 비율: ${(faceRatio * 100).toFixed(2)}%)`);
           hasSmallFaces = true;
         }
@@ -709,21 +724,30 @@ export default function ScreenshotTime() {
       setTestResult(result);
 
       // 얼굴에 박스 그리기
-      const predictions = await modelRef.current.estimateFaces(canvas, false);
+      const detections = await faceapi.detectAllFaces(
+        canvas,
+        new faceapi.SsdMobilenetv1Options({
+          minConfidence: 0.3,
+          maxResults: 100,
+        })
+      );
 
-      predictions.forEach((prediction: any) => {
-        const [x1, y1] = prediction.topLeft as [number, number];
-        const [x2, y2] = prediction.bottomRight as [number, number];
+      detections.forEach((detection, index) => {
+        const box = detection.box;
 
         // 박스 그리기
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 4;
-        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
 
         // 얼굴 번호 표시
         ctx.fillStyle = '#00ff00';
         ctx.font = '20px Arial';
-        ctx.fillText(`Face ${predictions.indexOf(prediction) + 1}`, x1, y1 - 10);
+        ctx.fillText(`Face ${index + 1}`, box.x, box.y - 10);
+
+        // 신뢰도 표시
+        ctx.font = '16px Arial';
+        ctx.fillText(`${(detection.score * 100).toFixed(1)}%`, box.x, box.y + box.height + 20);
       });
 
       // canvas를 이미지 URL로 변환
@@ -897,7 +921,7 @@ export default function ScreenshotTime() {
               </span>
             </label>
             <p className='text-xs text-gray-500 mt-2 ml-6'>
-              스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
+              스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. SSD MobileNet 모델을 사용하여 작은 얼굴도 잘 감지합니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
             </p>
           </div>
 
