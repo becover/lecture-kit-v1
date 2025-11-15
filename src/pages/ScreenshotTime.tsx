@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import * as faceapi from '@vladmandic/face-api';
 import Tesseract from 'tesseract.js';
+import { useTheme, THEME_PRESETS } from '../context/ThemeContext';
+import type { ThemeType } from '../context/ThemeContext';
 
 interface TimeSlot {
   id: number;
@@ -17,25 +19,6 @@ interface FaceDetectionResult {
   hasCroppedFaces: boolean;
 }
 
-type ThemeType = 'default' | 'dark' | 'minimal' | 'professional';
-
-interface ThemeColors {
-  name: string;
-  bg: string;
-  card: string;
-  text: string;
-  textSecondary: string;
-  primary: string;
-  primaryHover: string;
-  secondary: string;
-  secondaryHover: string;
-  accent: string;
-  accentHover: string;
-  border: string;
-  link: string;
-  linkHover: string;
-}
-
 // FileSystemDirectoryHandle 타입 확장
 interface ExtendedFileSystemDirectoryHandle extends FileSystemDirectoryHandle {
   queryPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
@@ -48,73 +31,6 @@ declare global {
     showDirectoryPicker(options?: { mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
   }
 }
-
-const THEME_PRESETS: Record<ThemeType, ThemeColors> = {
-  default: {
-    name: '기본 테마',
-    bg: 'bg-gray-50',
-    card: 'bg-white',
-    text: 'text-gray-800',
-    textSecondary: 'text-gray-600',
-    primary: 'bg-indigo-600',
-    primaryHover: 'hover:bg-indigo-700',
-    secondary: 'bg-purple-500',
-    secondaryHover: 'hover:bg-purple-600',
-    accent: 'bg-orange-500',
-    accentHover: 'hover:bg-orange-600',
-    border: 'border-gray-200',
-    link: 'text-indigo-600',
-    linkHover: 'hover:text-indigo-800',
-  },
-  dark: {
-    name: '다크 프리미엄',
-    bg: 'bg-gray-900',
-    card: 'bg-gray-800',
-    text: 'text-gray-100',
-    textSecondary: 'text-gray-400',
-    primary: 'bg-amber-600',
-    primaryHover: 'hover:bg-amber-700',
-    secondary: 'bg-yellow-600',
-    secondaryHover: 'hover:bg-yellow-700',
-    accent: 'bg-amber-500',
-    accentHover: 'hover:bg-amber-600',
-    border: 'border-gray-700',
-    link: 'text-amber-500',
-    linkHover: 'hover:text-amber-400',
-  },
-  minimal: {
-    name: '모던 미니멀',
-    bg: 'bg-slate-50',
-    card: 'bg-white',
-    text: 'text-slate-900',
-    textSecondary: 'text-slate-600',
-    primary: 'bg-slate-700',
-    primaryHover: 'hover:bg-slate-800',
-    secondary: 'bg-blue-600',
-    secondaryHover: 'hover:bg-blue-700',
-    accent: 'bg-sky-500',
-    accentHover: 'hover:bg-sky-600',
-    border: 'border-slate-200',
-    link: 'text-slate-700',
-    linkHover: 'hover:text-slate-900',
-  },
-  professional: {
-    name: '프로페셔널',
-    bg: 'bg-slate-100',
-    card: 'bg-white',
-    text: 'text-slate-800',
-    textSecondary: 'text-slate-600',
-    primary: 'bg-teal-600',
-    primaryHover: 'hover:bg-teal-700',
-    secondary: 'bg-emerald-600',
-    secondaryHover: 'hover:bg-emerald-700',
-    accent: 'bg-cyan-500',
-    accentHover: 'hover:bg-cyan-600',
-    border: 'border-slate-300',
-    link: 'text-teal-600',
-    linkHover: 'hover:text-teal-800',
-  },
-};
 
 const DEFAULT_TIME_SLOTS: Omit<TimeSlot, 'id' | 'triggered'>[] = [
   { time: '09:10', enabled: true },
@@ -129,10 +45,7 @@ const DEFAULT_TIME_SLOTS: Omit<TimeSlot, 'id' | 'triggered'>[] = [
 ];
 
 export default function ScreenshotTime() {
-  const [theme, setTheme] = useState<ThemeType>(() => {
-    const saved = localStorage.getItem('screenshot-theme');
-    return (saved as ThemeType) || 'default';
-  });
+  const { theme, setTheme, colors } = useTheme();
 
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(() => {
     const saved = localStorage.getItem('screenshot-time-slots');
@@ -270,10 +183,6 @@ export default function ScreenshotTime() {
   useEffect(() => {
     localStorage.setItem('screenshot-ocr-enabled', String(ocrEnabled));
   }, [ocrEnabled]);
-
-  useEffect(() => {
-    localStorage.setItem('screenshot-theme', theme);
-  }, [theme]);
 
   // 자정에 triggered 상태 초기화
   useEffect(() => {
@@ -1008,7 +917,6 @@ export default function ScreenshotTime() {
   };
 
   const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
-  const colors = THEME_PRESETS[theme];
 
   return (
     <div className={`min-h-screen ${colors.bg} transition-colors duration-300`}>
