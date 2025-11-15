@@ -79,6 +79,10 @@ export default function ScreenshotTime() {
     const saved = localStorage.getItem('screenshot-face-detection-enabled');
     return saved === 'true';
   });
+  const [ocrEnabled, setOcrEnabled] = useState(() => {
+    const saved = localStorage.getItem('screenshot-ocr-enabled');
+    return saved === 'false'; // 기본값: 비활성화 (OCR이 느려서)
+  });
   const modelRef = useRef<boolean>(false);
   const lastCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [testImage, setTestImage] = useState<File | null>(null);
@@ -171,6 +175,10 @@ export default function ScreenshotTime() {
   useEffect(() => {
     localStorage.setItem('screenshot-face-detection-enabled', String(faceDetectionEnabled));
   }, [faceDetectionEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('screenshot-ocr-enabled', String(ocrEnabled));
+  }, [ocrEnabled]);
 
   // 자정에 triggered 상태 초기화
   useEffect(() => {
@@ -451,8 +459,8 @@ export default function ScreenshotTime() {
         })
       );
 
-      // OCR로 이름 추출 (병렬 실행)
-      const namesWithPosition = await extractNamesWithPosition(canvas);
+      // OCR로 이름 추출 (옵션 활성화된 경우에만)
+      const namesWithPosition = ocrEnabled ? await extractNamesWithPosition(canvas) : [];
 
       const faceCount = detections.length;
       const warnings: string[] = [];
@@ -475,8 +483,10 @@ export default function ScreenshotTime() {
         const faceHeight = box.height;
         const faceArea = faceWidth * faceHeight;
 
-        // 얼굴과 가장 가까운 이름 찾기
-        const name = findClosestName(box, namesWithPosition) || `얼굴 ${index + 1}`;
+        // 얼굴과 가장 가까운 이름 찾기 (OCR 활성화된 경우에만)
+        const name = ocrEnabled && namesWithPosition.length > 0
+          ? (findClosestName(box, namesWithPosition) || `얼굴 ${index + 1}`)
+          : `얼굴 ${index + 1}`;
 
         // 얼굴 크기 비율 (전체 화면 대비)
         const faceRatio = faceArea / canvasArea;
@@ -1057,6 +1067,22 @@ export default function ScreenshotTime() {
             </label>
             <p className='text-xs text-gray-500 mt-2 ml-6'>
               스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. SSD MobileNet 모델을 사용하여 높은 정확도로 얼굴을 감지합니다. "운영진/운영/KDT/오르미" 텍스트가 있는 화면은 자동으로 건너뜁니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
+            </p>
+
+            <label className='flex items-center cursor-pointer mt-3'>
+              <input
+                type='checkbox'
+                checked={ocrEnabled}
+                onChange={(e) => setOcrEnabled(e.target.checked)}
+                disabled={!faceDetectionEnabled}
+                className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50'
+              />
+              <span className='ml-2 text-sm font-medium text-gray-700'>
+                📝 이름 인식 (OCR)
+              </span>
+            </label>
+            <p className='text-xs text-gray-500 mt-2 ml-6'>
+              OCR로 화면에서 이름을 감지하여 경고 메시지에 표시합니다. 분석 시간이 10-15초 추가될 수 있습니다. 비활성화하면 "얼굴 1", "얼굴 2"로 표시됩니다.
             </p>
           </div>
 
