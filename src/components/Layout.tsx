@@ -1,6 +1,7 @@
 import { Link, Outlet } from 'react-router-dom';
 import { useTheme, THEME_PRESETS } from '../context/ThemeContext';
 import type { ThemeType } from '../context/ThemeContext';
+import { Palette } from 'lucide-react';
 
 export default function Layout() {
   const { theme, setTheme, colors } = useTheme();
@@ -30,9 +31,7 @@ export default function Layout() {
               </Link>
 
               <div className='flex items-center gap-2 ml-4'>
-                <label className={`text-xs font-medium ${colors.text}`}>
-                  🎨
-                </label>
+                <Palette className={`w-4 h-4 ${colors.text}`} />
                 <select
                   value={theme}
                   onChange={(e) => setTheme(e.target.value as ThemeType)}

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { playSound, SOUNDS, type SoundType } from '../utils/sounds';
+import { Timer as LTimer, BellRing as LBellRing } from 'lucide-react';
 
 export default function Timer() {
   const { colors } = useTheme();
@@ -10,6 +12,11 @@ export default function Timer() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [title, setTitle] = useState('');
+  const [soundType, setSoundType] = useState<SoundType>(() => {
+    const saved = localStorage.getItem('timer-sound-type');
+    return (saved as SoundType) || 'beep';
+  });
+  const [showSoundMenu, setShowSoundMenu] = useState(false);
 
   const presets = [
     { name: '발표 시간', duration: 5 },
@@ -35,12 +42,19 @@ export default function Timer() {
           body: title || '설정한 시간이 종료되었습니다.',
         });
       }
+      // 종료 사운드
+      playSound(soundType);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, timeLeft, title]);
+  }, [isRunning, timeLeft, title, soundType]);
+
+  // 사운드 지속 저장
+  useEffect(() => {
+    localStorage.setItem('timer-sound-type', soundType);
+  }, [soundType]);
 
   const startTimer = () => {
     const totalSeconds = minutes * 60 + seconds;
@@ -78,13 +92,18 @@ export default function Timer() {
     const secs = totalSeconds % 60;
 
     if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs
+        .toString()
+        .padStart(2, '0')}`;
     }
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, '0')}:${secs
+      .toString()
+      .padStart(2, '0')}`;
   };
 
   const initialTotal = minutes * 60 + seconds;
-  const progress = initialTotal > 0 ? ((initialTotal - timeLeft) / initialTotal) * 100 : 0;
+  const progress =
+    initialTotal > 0 ? ((initialTotal - timeLeft) / initialTotal) * 100 : 0;
 
   return (
     <div className='max-w-full w-full'>
@@ -100,9 +119,57 @@ export default function Timer() {
       <div
         className={`${colors.card} rounded-lg shadow-md p-8 ${colors.border} border transition-colors duration-300`}
       >
-        <h1 className={`text-3xl font-bold ${colors.text} mb-6 text-center`}>
-          수업 타이머 ⏱
-        </h1>
+        <div className='flex justify-between items-center mb-6'>
+          <div>
+            <h1 className={`text-3xl font-bold ${colors.text}`}>
+              <span className='inline-flex items-center gap-2'>
+                <LTimer className='w-7 h-7' /> 수업 타이머
+              </span>
+            </h1>
+          </div>
+          <div className='text-right relative'>
+            <div className='flex items-center justify-end gap-2'>
+              <button
+                type='button'
+                onClick={() => setShowSoundMenu((v) => !v)}
+                className={`inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md border ${colors.border} ${colors.card} ${colors.text} transition-colors hover:brightness-95`}
+                aria-haspopup='menu'
+                aria-expanded={showSoundMenu}
+              >
+                <LBellRing className='w-5 h-5' />
+                <span className='text-sm font-medium'>
+                  {SOUNDS[soundType].name}
+                </span>
+              </button>
+            </div>
+            {showSoundMenu && (
+              <div
+                className={`absolute right-0 mt-1 w-60 ${colors.card} border ${colors.border} rounded-md shadow-lg z-50`}
+              >
+                <ul className='py-1 max-h-64 overflow-auto'>
+                  {(Object.keys(SOUNDS) as SoundType[]).map((key) => (
+                    <li key={key}>
+                      <button
+                        type='button'
+                        onClick={() => {
+                          setSoundType(key);
+                          playSound(key);
+                          setShowSoundMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between ${colors.text} transition-colors hover:brightness-95`}
+                      >
+                        <span>{SOUNDS[key].name}</span>
+                        {key === soundType && (
+                          <span className={`${colors.link}`}>선택됨</span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className='mb-6'>
           <label className={`block text-sm font-medium ${colors.text} mb-2`}>
