@@ -92,11 +92,12 @@ export default function ScreenshotTime() {
         console.log('🤖 얼굴 인식 모델 로딩 중...');
 
         // @vladmandic/face-api 모델 로드 (CDN에서)
+        // TinyFaceDetector: 가볍고 빠른 모델 (SSD MobileNet보다 10배 이상 빠름)
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
-        await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
 
         modelRef.current = true;
-        console.log('✅ 얼굴 인식 모델 로드 완료');
+        console.log('✅ 얼굴 인식 모델 로드 완료 (TinyFaceDetector)');
       } catch (error) {
         console.error('❌ 얼굴 인식 모델 로드 실패:', error);
       }
@@ -341,12 +342,12 @@ export default function ScreenshotTime() {
     }
 
     try {
-      // face-api.js로 얼굴 감지 (작은 얼굴도 감지하기 위해 옵션 조정)
+      // TinyFaceDetector로 얼굴 감지 (빠르고 작은 얼굴도 잘 감지)
       const detections = await faceapi.detectAllFaces(
         canvas,
-        new faceapi.SsdMobilenetv1Options({
-          minConfidence: 0.3, // 신뢰도 임계값 낮춤 (기본 0.5)
-          maxResults: 100, // 최대 100개 얼굴까지 감지
+        new faceapi.TinyFaceDetectorOptions({
+          inputSize: 416, // 입력 크기 (높을수록 정확하지만 느림, 기본: 416)
+          scoreThreshold: 0.4, // 신뢰도 임계값 (낮을수록 더 많이 감지, 기본: 0.5)
         })
       );
 
@@ -748,9 +749,9 @@ export default function ScreenshotTime() {
       // 얼굴에 박스 그리기
       const detections = await faceapi.detectAllFaces(
         canvas,
-        new faceapi.SsdMobilenetv1Options({
-          minConfidence: 0.3,
-          maxResults: 100,
+        new faceapi.TinyFaceDetectorOptions({
+          inputSize: 416,
+          scoreThreshold: 0.4,
         })
       );
 
@@ -943,7 +944,7 @@ export default function ScreenshotTime() {
               </span>
             </label>
             <p className='text-xs text-gray-500 mt-2 ml-6'>
-              스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. SSD MobileNet 모델을 사용하여 작은 얼굴도 잘 감지합니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
+              스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. TinyFaceDetector 모델을 사용하여 빠르고 정확하게 작은 얼굴도 감지합니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
             </p>
           </div>
 
