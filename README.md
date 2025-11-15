@@ -2,12 +2,21 @@
 
 강의에 필요한 다양한 도구들을 한 곳에서 관리할 수 있는 웹 기반 대시보드입니다.
 
+**🌐 배포 사이트:** [https://kit.mylecture.kr](https://kit.mylecture.kr)
+
 ## 주요 기능
 
-### 🍅 뽀모도로 타이머
-- 50분 수업 사이클에 맞추어 기본 셋팅
-- 완료한 뽀모도로 카운트 추적
-- 사운드 제공 및 시각적 진행 상태 표시
+### 🎨 테마 시스템
+- 4가지 테마 프리셋 (기본, 다크 프리미엄, 미니멀, 프로페셔널)
+- 실시간 테마 전환
+- 모든 페이지 일관된 디자인
+- localStorage 자동 저장
+
+### 🍅 수업 시간표 알림
+- 시간대별 알림 설정 (최대 10개)
+- 브라우저 알림 지원
+- 서버 시간 동기화 (timeapi.io)
+- 자정 자동 초기화
 
 ### ⏱ 수업 타이머
 - 커스터마이즈 가능한 타이머
@@ -64,18 +73,29 @@ npm run build
 npm run preview
 ```
 
+### 배포
+
+자세한 배포 가이드는 [DEPLOY.md](./DEPLOY.md)를 참고하세요.
+
+**간단 요약:**
+- GitHub Actions를 통한 자동 배포 지원
+- main 브랜치에 푸시하면 자동으로 빌드 & 배포
+- Nginx + Cloudflare 조합 사용
+- HTTPS 자동 적용
+
 ## 프로젝트 구조
 
 ```
 lecture-kit-v1/
 ├── src/
 │   ├── components/       # 재사용 가능한 컴포넌트
-│   │   ├── Layout.tsx   # 전체 레이아웃
+│   │   ├── Layout.tsx   # 전체 레이아웃 (헤더, 푸터, 테마 선택)
 │   │   └── Card.tsx     # 대시보드 카드
+│   ├── context/         # React Context
+│   │   └── ThemeContext.tsx  # 전역 테마 관리
 │   ├── pages/           # 페이지 컴포넌트
 │   │   ├── Dashboard.tsx
-│   │   ├── Attendance.tsx
-│   │   ├── Pomodoro.tsx
+│   │   ├── Pomodoro.tsx      # 수업 시간표 알림
 │   │   ├── Timer.tsx
 │   │   ├── ScreenshotTime.tsx
 │   │   ├── Survey.tsx
@@ -84,6 +104,10 @@ lecture-kit-v1/
 │   ├── main.tsx         # 앱 진입점
 │   └── index.css        # 전역 스타일
 ├── public/              # 정적 파일
+├── .github/workflows/   # GitHub Actions
+│   └── deploy.yml       # 자동 배포 워크플로우
+├── nginx.conf           # Nginx 서버 설정
+├── DEPLOY.md            # 배포 가이드
 └── package.json         # 프로젝트 설정
 ```
 
@@ -107,12 +131,15 @@ lecture-kit-v1/
    - 자동으로 스크린샷 촬영 및 저장
 
 ## 향후 개발 계획
-- [x] 다크 모드 지원
+- [x] 테마 시스템 (4가지 프리셋)
+- [x] 수업 시간표 알림 기능
 - [x] 스크린샷 타임 기능
 - [x] 얼굴 인식 기능
 - [x] OCR 기반 이름 인식
+- [x] GitHub Actions 자동 배포
 - [ ] 모바일 반응형 개선
 - [ ] PWA (Progressive Web App) 지원
+- [ ] Electron 데스크톱 앱 (필요시)
 
 ## 라이선스
 
