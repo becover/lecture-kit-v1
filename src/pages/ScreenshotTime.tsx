@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import * as tf from '@tensorflow/tfjs';
-import * as faceapi from 'face-api.js';
+import * as faceapi from '@vladmandic/face-api';
 
 interface TimeSlot {
   id: number;
@@ -73,14 +72,13 @@ export default function ScreenshotTime() {
   const [testCanvasUrl, setTestCanvasUrl] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
-  // face-api.js 모델 로드
+  // @vladmandic/face-api 모델 로드
   useEffect(() => {
     const loadModel = async () => {
       try {
         console.log('🤖 얼굴 인식 모델 로딩 중...');
-        await tf.ready();
 
-        // face-api.js 모델 로드 (CDN에서)
+        // @vladmandic/face-api 모델 로드 (CDN에서)
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
         await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
 
