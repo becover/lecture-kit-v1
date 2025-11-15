@@ -438,15 +438,17 @@ export default function ScreenshotTime() {
       };
     }
 
-    // 먼저 제외 키워드 체크
-    const shouldSkip = await detectExcludedText(canvas);
-    if (shouldSkip) {
-      return {
-        faceCount: -1, // 특수값: 스킵됨
-        warnings: ['운영진/운영/KDT/오르미 화면이므로 얼굴 인식을 건너뜁니다'],
-        hasSmallFaces: false,
-        hasCroppedFaces: false,
-      };
+    // 먼저 제외 키워드 체크 (OCR 활성화된 경우에만)
+    if (ocrEnabled) {
+      const shouldSkip = await detectExcludedText(canvas);
+      if (shouldSkip) {
+        return {
+          faceCount: -1, // 특수값: 스킵됨
+          warnings: ['운영진/운영/KDT/오르미 화면이므로 얼굴 인식을 건너뜁니다'],
+          hasSmallFaces: false,
+          hasCroppedFaces: false,
+        };
+      }
     }
 
     try {
