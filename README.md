@@ -2,12 +2,21 @@
 
 강의에 필요한 다양한 도구들을 한 곳에서 관리할 수 있는 웹 기반 대시보드입니다.
 
+**🌐 배포 사이트:** [https://kit.mylecture.kr](https://kit.mylecture.kr)
+
 ## 주요 기능
 
-### 🍅 뽀모도로 타이머
-- 50분 수업 사이클에 맞추어 기본 셋팅
-- 완료한 뽀모도로 카운트 추적
-- 사운드 제공 및 시각적 진행 상태 표시
+### 🎨 테마 시스템
+- 4가지 테마 프리셋 (기본, 다크 프리미엄, 미니멀, 프로페셔널)
+- 실시간 테마 전환
+- 모든 페이지 일관된 디자인
+- localStorage 자동 저장
+
+### 🍅 수업 시간표 알림
+- 시간대별 알림 설정 (최대 10개)
+- 브라우저 알림 지원
+- 서버 시간 동기화 (timeapi.io)
+- 자정 자동 초기화
 
 ### ⏱ 수업 타이머
 - 커스터마이즈 가능한 타이머
@@ -15,12 +24,30 @@
 - 브라우저 알림 지원
 - 타이머 이름 설정 기능
 
+### 📸 스크린샷 타임
+- 설정된 시간에 자동으로 60초 카운트다운 시작
+- 30초 전 알림음 및 브라우저 알림
+- 10초부터 매초마다 알림음 제공
+- 자동 파일명 생성 (YY-MM-DD-HH-MM 형식)
+- 중복 파일명 자동 처리 (1), (2), (3)...
+- 저장 폴더 선택 (Chrome/Edge 지원)
+- 파일명 프리픽스 기능
+- 얼굴 인식 기능 (SSD MobileNet 모델)
+  - 얼굴 크기 및 위치 자동 분석
+  - 화면 가장자리 잘림 감지
+  - 운영진/운영/KDT/오르미 화면 자동 스킵
+- OCR 기반 이름 인식 (옵션)
+- 얼굴 인식 테스트 기능
+- 서버 시간 동기화로 정확한 시간 관리
+
 ## 기술 스택
 
 - **Frontend Framework**: React 19 + TypeScript
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS v4
 - **Routing**: React Router v6
+- **Face Detection**: @vladmandic/face-api (SSD MobileNet)
+- **OCR**: Tesseract.js
 
 ## 시작하기
 
@@ -46,27 +73,41 @@ npm run build
 npm run preview
 ```
 
+### 배포
+
+자세한 배포 가이드는 [DEPLOY.md](./DEPLOY.md)를 참고하세요.
+
+**간단 요약:**
+- GitHub Actions를 통한 자동 배포 지원
+- main 브랜치에 푸시하면 자동으로 빌드 & 배포
+- Nginx + Cloudflare 조합 사용
+- HTTPS 자동 적용
+
 ## 프로젝트 구조
 
 ```
 lecture-kit-v1/
 ├── src/
 │   ├── components/       # 재사용 가능한 컴포넌트
-│   │   ├── Layout.tsx   # 전체 레이아웃
+│   │   ├── Layout.tsx   # 전체 레이아웃 (헤더, 푸터, 테마 선택)
 │   │   └── Card.tsx     # 대시보드 카드
+│   ├── context/         # React Context
+│   │   └── ThemeContext.tsx  # 전역 테마 관리
 │   ├── pages/           # 페이지 컴포넌트
 │   │   ├── Dashboard.tsx
-│   │   ├── Attendance.tsx
-│   │   ├── Pomodoro.tsx
+│   │   ├── Pomodoro.tsx      # 수업 시간표 알림
 │   │   ├── Timer.tsx
+│   │   ├── ScreenshotTime.tsx
 │   │   ├── Survey.tsx
 │   │   └── Upload.tsx
 │   ├── App.tsx          # 라우팅 설정
 │   ├── main.tsx         # 앱 진입점
 │   └── index.css        # 전역 스타일
 ├── public/              # 정적 파일
-├── vercel.json          # Vercel 배포 설정
-├── netlify.toml         # Netlify 배포 설정
+├── .github/workflows/   # GitHub Actions
+│   └── deploy.yml       # 자동 배포 워크플로우
+├── nginx.conf           # Nginx 서버 설정
+├── DEPLOY.md            # 배포 가이드
 └── package.json         # 프로젝트 설정
 ```
 
@@ -74,15 +115,31 @@ lecture-kit-v1/
 
 ### 수업 시작 전
 1. **뽀모도로 타이머** 활성화
-2. **뽀모도로 타이머** 테스트
+2. **스크린샷 타임** 설정:
+   - 저장 폴더 선택 (선택사항)
+   - 파일명 프리픽스 설정 (선택사항)
+   - 얼굴 인식 활성화 (선택사항)
+   - 시간대 확인 및 조정
+3. **스크린샷 타임** 테스트로 얼굴 인식 정확도 확인
 
 ### 수업 중
 1. **뽀모도로 타이머**로 집중 학습 시간 관리
+2. **스크린샷 타임**으로 매 시간별 자동 스크린샷 촬영
+   - 설정된 시간 60초 전 자동 카운트다운 시작
+   - 30초 전 알림음 및 브라우저 알림
+   - 10초부터 매초마다 알림음
+   - 자동으로 스크린샷 촬영 및 저장
 
 ## 향후 개발 계획
-- [ ] 다크 모드 지원
+- [x] 테마 시스템 (4가지 프리셋)
+- [x] 수업 시간표 알림 기능
+- [x] 스크린샷 타임 기능
+- [x] 얼굴 인식 기능
+- [x] OCR 기반 이름 인식
+- [x] GitHub Actions 자동 배포
 - [ ] 모바일 반응형 개선
 - [ ] PWA (Progressive Web App) 지원
+- [ ] Electron 데스크톱 앱 (필요시)
 
 ## 라이선스
 
