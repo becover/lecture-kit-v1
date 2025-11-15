@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import * as faceapi from '@vladmandic/face-api';
 import Tesseract from 'tesseract.js';
-import { useTheme, THEME_PRESETS } from '../context/ThemeContext';
-import type { ThemeType } from '../context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface TimeSlot {
   id: number;
@@ -21,14 +20,20 @@ interface FaceDetectionResult {
 
 // FileSystemDirectoryHandle 타입 확장
 interface ExtendedFileSystemDirectoryHandle extends FileSystemDirectoryHandle {
-  queryPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
-  requestPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
+  queryPermission(descriptor: {
+    mode: 'read' | 'readwrite';
+  }): Promise<PermissionState>;
+  requestPermission(descriptor: {
+    mode: 'read' | 'readwrite';
+  }): Promise<PermissionState>;
 }
 
 // Window 타입 확장
 declare global {
   interface Window {
-    showDirectoryPicker(options?: { mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
+    showDirectoryPicker(options?: {
+      mode?: 'read' | 'readwrite';
+    }): Promise<FileSystemDirectoryHandle>;
   }
 }
 
@@ -45,7 +50,7 @@ const DEFAULT_TIME_SLOTS: Omit<TimeSlot, 'id' | 'triggered'>[] = [
 ];
 
 export default function ScreenshotTime() {
-  const { theme, setTheme, colors } = useTheme();
+  const { colors } = useTheme();
 
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(() => {
     const saved = localStorage.getItem('screenshot-time-slots');
@@ -69,7 +74,8 @@ export default function ScreenshotTime() {
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [timeOffset, setTimeOffset] = useState(0); // 서버 시간과의 차이 (ms)
   const [isCapturing, setIsCapturing] = useState(false);
-  const [saveDirectory, setSaveDirectory] = useState<FileSystemDirectoryHandle | null>(null);
+  const [saveDirectory, setSaveDirectory] =
+    useState<FileSystemDirectoryHandle | null>(null);
   const [savePath, setSavePath] = useState<string>('브라우저 다운로드 폴더');
   const [usePrefixEnabled, setUsePrefixEnabled] = useState(() => {
     const saved = localStorage.getItem('screenshot-use-prefix');
@@ -90,7 +96,9 @@ export default function ScreenshotTime() {
   const modelRef = useRef<boolean>(false);
   const lastCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [testImage, setTestImage] = useState<File | null>(null);
-  const [testResult, setTestResult] = useState<FaceDetectionResult | null>(null);
+  const [testResult, setTestResult] = useState<FaceDetectionResult | null>(
+    null
+  );
   const [testCanvasUrl, setTestCanvasUrl] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
@@ -102,7 +110,8 @@ export default function ScreenshotTime() {
 
         // @vladmandic/face-api 모델 로드 (CDN에서)
         // SSD MobileNet: 정확도 높음 (TinyFaceDetector보다 느리지만 더 정확)
-        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+        const MODEL_URL =
+          'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
         await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
 
         modelRef.current = true;
@@ -119,7 +128,9 @@ export default function ScreenshotTime() {
     const syncTime = async () => {
       try {
         // timeapi.io 사용 (worldtimeapi.org 대체)
-        const response = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Seoul');
+        const response = await fetch(
+          'https://timeapi.io/api/time/current/zone?timeZone=Asia/Seoul'
+        );
         if (!response.ok) throw new Error('Time sync failed');
 
         const data = await response.json();
@@ -177,7 +188,10 @@ export default function ScreenshotTime() {
   }, [filenamePrefix]);
 
   useEffect(() => {
-    localStorage.setItem('screenshot-face-detection-enabled', String(faceDetectionEnabled));
+    localStorage.setItem(
+      'screenshot-face-detection-enabled',
+      String(faceDetectionEnabled)
+    );
   }, [faceDetectionEnabled]);
 
   useEffect(() => {
@@ -189,8 +203,8 @@ export default function ScreenshotTime() {
     const checkMidnight = setInterval(() => {
       const now = getAccurateTime();
       if (now.getHours() === 0 && now.getMinutes() === 0) {
-        setTimeSlots(slots =>
-          slots.map(slot => ({ ...slot, triggered: false }))
+        setTimeSlots((slots) =>
+          slots.map((slot) => ({ ...slot, triggered: false }))
         );
         setIsCountingDown(false);
         setCountdown(null);
@@ -202,7 +216,9 @@ export default function ScreenshotTime() {
 
   // 알림음 재생
   const playBeep = useCallback(() => {
-    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVanm7q1aFQ1Ln+Pxv3IeBi6Cz/PWhzYHImzB7+WaTg4NUqnl762cFAxKnuPvwnAhBSx/zvPYiDYHI3DB7uOaSQ4NUqbl761dFQ1Ln+PvwnAhBSyAz/PXhzUHIm/A7uKZSg0PVKjl7axdFQxLn+PvwnAhBSx/zvPYhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnEhBSyBz/PWhzUHIm/A7uSZSw4PU6fk7axcFQxLn+PwwnEhBiyAzvPWhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnAhBSyAzvPXiDUHIm/A7uOaSw4PU6fk7axdFQxLn+PvwnEhBSyAzvPWhzYHI2/A7uKZSw4PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHInDB7uOZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHInDB7uOZSg0PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHI3DB7uOZSQ0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxL');
+    const audio = new Audio(
+      'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVanm7q1aFQ1Ln+Pxv3IeBi6Cz/PWhzYHImzB7+WaTg4NUqnl762cFAxKnuPvwnAhBSx/zvPYiDYHI3DB7uOaSQ4NUqbl761dFQ1Ln+PvwnAhBSyAz/PXhzUHIm/A7uKZSg0PVKjl7axdFQxLn+PvwnAhBSx/zvPYhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnEhBSyBz/PWhzUHIm/A7uSZSw4PU6fk7axcFQxLn+PwwnEhBiyAzvPWhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnAhBSyAzvPXiDUHIm/A7uOaSw4PU6fk7axdFQxLn+PvwnEhBSyAzvPWhzYHI2/A7uKZSw4PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHInDB7uOZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHInDB7uOZSg0PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHI3DB7uOZSQ0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxL'
+    );
     audio.play().catch(() => {
       console.log('⚠️ 오디오 재생 실패');
     });
@@ -211,7 +227,10 @@ export default function ScreenshotTime() {
   // 30초 알림
   const notify30Seconds = useCallback(() => {
     playBeep();
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'granted'
+    ) {
       new Notification('스크린샷 타임 ⏰', {
         body: '30초 후 스크린샷 시간입니다!',
         tag: 'screenshot-30s',
@@ -242,7 +261,7 @@ export default function ScreenshotTime() {
     if (!isCountingDown || countdown === null) return;
 
     const timer = setTimeout(() => {
-      setCountdown(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
+      setCountdown((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => clearTimeout(timer);
@@ -266,7 +285,8 @@ export default function ScreenshotTime() {
       // 목표 시간을 초 단위로 변환
       const targetTimeInSeconds = targetHour * 3600 + targetMinute * 60;
       // 현재 시간을 초 단위로 변환
-      const currentTimeInSeconds = currentHour * 3600 + currentMinute * 60 + currentSecond;
+      const currentTimeInSeconds =
+        currentHour * 3600 + currentMinute * 60 + currentSecond;
 
       // 목표 시간 60초 전에 카운트다운 시작
       const startTimeInSeconds = targetTimeInSeconds - 60;
@@ -282,9 +302,7 @@ export default function ScreenshotTime() {
 
         // 트리거 상태 업데이트
         setTimeSlots((prev) =>
-          prev.map((s) =>
-            s.id === slot.id ? { ...s, triggered: true } : s
-          )
+          prev.map((s) => (s.id === slot.id ? { ...s, triggered: true } : s))
         );
       }
     });
@@ -315,7 +333,7 @@ export default function ScreenshotTime() {
   };
 
   const resetTriggers = () => {
-    setTimeSlots(prev => prev.map(slot => ({ ...slot, triggered: false })));
+    setTimeSlots((prev) => prev.map((slot) => ({ ...slot, triggered: false })));
     setIsCountingDown(false);
     setCountdown(null);
   };
@@ -336,7 +354,9 @@ export default function ScreenshotTime() {
         setSavePath(dirHandle.name);
         console.log('✅ 저장 폴더 선택:', dirHandle.name);
       } else {
-        alert('이 브라우저는 폴더 선택을 지원하지 않습니다. 브라우저 다운로드 폴더에 저장됩니다.');
+        alert(
+          '이 브라우저는 폴더 선택을 지원하지 않습니다. 브라우저 다운로드 폴더에 저장됩니다.'
+        );
       }
     } catch (error) {
       console.error('❌ 폴더 선택 실패:', error);
@@ -344,17 +364,23 @@ export default function ScreenshotTime() {
   };
 
   // 텍스트 감지 (운영진/운영/KDT/오르미 감지)
-  const detectExcludedText = async (canvas: HTMLCanvasElement): Promise<boolean> => {
+  const detectExcludedText = async (
+    canvas: HTMLCanvasElement
+  ): Promise<boolean> => {
     try {
       console.log('📝 텍스트 감지 중...');
       const dataUrl = canvas.toDataURL('image/png');
 
-      const { data: { text } } = await Tesseract.recognize(dataUrl, 'kor+eng', {
+      const {
+        data: { text },
+      } = await Tesseract.recognize(dataUrl, 'kor+eng', {
         logger: () => {}, // 로그 비활성화
       });
 
       const excludedKeywords = ['운영진', '운영', 'KDT', '오르미'];
-      const foundKeywords = excludedKeywords.filter(keyword => text.includes(keyword));
+      const foundKeywords = excludedKeywords.filter((keyword) =>
+        text.includes(keyword)
+      );
 
       if (foundKeywords.length > 0) {
         console.log('✅ 제외 키워드 감지:', foundKeywords.join(', '));
@@ -382,7 +408,8 @@ export default function ScreenshotTime() {
         text: string;
         bbox: { x0: number; y0: number; x1: number; y1: number };
       }
-      const words = (result.data as unknown as { words: TesseractWord[] }).words;
+      const words = (result.data as unknown as { words: TesseractWord[] })
+        .words;
       const namesWithPosition = words.map((word) => ({
         text: word.text,
         bbox: word.bbox, // { x0, y0, x1, y1 }
@@ -396,7 +423,13 @@ export default function ScreenshotTime() {
   };
 
   // 얼굴 박스와 가장 가까운 이름 찾기
-  const findClosestName = (faceBox: { x: number; y: number; width: number; height: number }, names: Array<{ text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }>) => {
+  const findClosestName = (
+    faceBox: { x: number; y: number; width: number; height: number },
+    names: Array<{
+      text: string;
+      bbox: { x0: number; y0: number; x1: number; y1: number };
+    }>
+  ) => {
     if (names.length === 0) return null;
 
     const faceCenterX = faceBox.x + faceBox.width / 2;
@@ -432,7 +465,9 @@ export default function ScreenshotTime() {
   };
 
   // 얼굴 인식 분석
-  const analyzeFaces = async (canvas: HTMLCanvasElement): Promise<FaceDetectionResult> => {
+  const analyzeFaces = async (
+    canvas: HTMLCanvasElement
+  ): Promise<FaceDetectionResult> => {
     if (!modelRef.current) {
       return {
         faceCount: 0,
@@ -448,7 +483,9 @@ export default function ScreenshotTime() {
       if (shouldSkip) {
         return {
           faceCount: -1, // 특수값: 스킵됨
-          warnings: ['운영진/운영/KDT/오르미 화면이므로 얼굴 인식을 건너뜁니다'],
+          warnings: [
+            '운영진/운영/KDT/오르미 화면이므로 얼굴 인식을 건너뜁니다',
+          ],
           hasSmallFaces: false,
           hasCroppedFaces: false,
         };
@@ -466,7 +503,9 @@ export default function ScreenshotTime() {
       );
 
       // OCR로 이름 추출 (옵션 활성화된 경우에만)
-      const namesWithPosition = ocrEnabled ? await extractNamesWithPosition(canvas) : [];
+      const namesWithPosition = ocrEnabled
+        ? await extractNamesWithPosition(canvas)
+        : [];
 
       const faceCount = detections.length;
       const warnings: string[] = [];
@@ -490,16 +529,21 @@ export default function ScreenshotTime() {
         const faceArea = faceWidth * faceHeight;
 
         // 얼굴과 가장 가까운 이름 찾기 (OCR 활성화된 경우에만)
-        const name = ocrEnabled && namesWithPosition.length > 0
-          ? (findClosestName(box, namesWithPosition) || `얼굴 ${index + 1}`)
-          : `얼굴 ${index + 1}`;
+        const name =
+          ocrEnabled && namesWithPosition.length > 0
+            ? findClosestName(box, namesWithPosition) || `얼굴 ${index + 1}`
+            : `얼굴 ${index + 1}`;
 
         // 얼굴 크기 비율 (전체 화면 대비)
         const faceRatio = faceArea / canvasArea;
 
         // 얼굴이 너무 작은지 체크 (화면의 0.5% 미만으로 낮춤)
         if (faceRatio < 0.005) {
-          warnings.push(`${name}: 얼굴이 너무 작습니다 (화면 비율: ${(faceRatio * 100).toFixed(2)}%)`);
+          warnings.push(
+            `${name}: 얼굴이 너무 작습니다 (화면 비율: ${(
+              faceRatio * 100
+            ).toFixed(2)}%)`
+          );
           hasSmallFaces = true;
         }
 
@@ -511,8 +555,15 @@ export default function ScreenshotTime() {
         const bottomEdge = canvasHeight * (1 - edgeMargin);
 
         // 얼굴이 화면 가장자리에서 잘리는지 체크
-        if (x1 < leftEdge || x2 > rightEdge || y1 < topEdge || y2 > bottomEdge) {
-          warnings.push(`${name}: 얼굴이 화면 가장자리에 위치하여 잘릴 수 있습니다`);
+        if (
+          x1 < leftEdge ||
+          x2 > rightEdge ||
+          y1 < topEdge ||
+          y2 > bottomEdge
+        ) {
+          warnings.push(
+            `${name}: 얼굴이 화면 가장자리에 위치하여 잘릴 수 있습니다`
+          );
           hasCroppedFaces = true;
         }
       });
@@ -559,7 +610,8 @@ export default function ScreenshotTime() {
     localStorage.setItem(counterKey, String(newCounter));
 
     // 프리픽스 적용
-    const prefix = usePrefixEnabled && filenamePrefix ? `${filenamePrefix}_` : '';
+    const prefix =
+      usePrefixEnabled && filenamePrefix ? `${filenamePrefix}_` : '';
 
     // 파일명 생성
     if (newCounter === 1) {
@@ -608,7 +660,7 @@ export default function ScreenshotTime() {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       // 스트림 중지
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
 
       // 캔버스 저장 (재촬영용)
       lastCanvasRef.current = canvas;
@@ -626,12 +678,17 @@ export default function ScreenshotTime() {
         if (saveDirectory && 'showDirectoryPicker' in window) {
           try {
             // 폴더 권한 확인
-            const extendedDir = saveDirectory as ExtendedFileSystemDirectoryHandle;
-            const permission = await extendedDir.queryPermission({ mode: 'readwrite' });
+            const extendedDir =
+              saveDirectory as ExtendedFileSystemDirectoryHandle;
+            const permission = await extendedDir.queryPermission({
+              mode: 'readwrite',
+            });
 
             if (permission === 'granted') {
               // 권한 있음 - 바로 저장
-              const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
+              const fileHandle = await saveDirectory.getFileHandle(filename, {
+                create: true,
+              });
               const writable = await fileHandle.createWritable();
               await writable.write(blob);
               await writable.close();
@@ -639,9 +696,13 @@ export default function ScreenshotTime() {
               console.log('저장 위치:', savePath);
             } else if (permission === 'prompt') {
               // 권한 요청 필요
-              const newPermission = await extendedDir.requestPermission({ mode: 'readwrite' });
+              const newPermission = await extendedDir.requestPermission({
+                mode: 'readwrite',
+              });
               if (newPermission === 'granted') {
-                const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
+                const fileHandle = await saveDirectory.getFileHandle(filename, {
+                  create: true,
+                });
                 const writable = await fileHandle.createWritable();
                 await writable.write(blob);
                 await writable.close();
@@ -677,14 +738,17 @@ export default function ScreenshotTime() {
             // 스킵된 경우
             alert('✅ ' + result.warnings[0]);
           } else if (result.warnings.length > 0) {
-            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${result.faceCount}개\n\n${result.warnings.join('\n')}`;
+            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${
+              result.faceCount
+            }개\n\n${result.warnings.join('\n')}`;
             alert(warningMsg);
           } else {
-            alert(`얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`);
+            alert(
+              `얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`
+            );
           }
         }
       }, 'image/png');
-
     } catch (error) {
       console.error('❌ 스크린샷 캡처 실패:', error);
       alert('스크린샷 캡처에 실패했습니다. 권한을 확인해주세요.');
@@ -742,7 +806,7 @@ export default function ScreenshotTime() {
       }
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
 
       // 캔버스 저장
       lastCanvasRef.current = canvas;
@@ -759,18 +823,27 @@ export default function ScreenshotTime() {
         // 저장
         if (saveDirectory && 'showDirectoryPicker' in window) {
           try {
-            const extendedDir = saveDirectory as ExtendedFileSystemDirectoryHandle;
-            const permission = await extendedDir.queryPermission({ mode: 'readwrite' });
+            const extendedDir =
+              saveDirectory as ExtendedFileSystemDirectoryHandle;
+            const permission = await extendedDir.queryPermission({
+              mode: 'readwrite',
+            });
             if (permission === 'granted') {
-              const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
+              const fileHandle = await saveDirectory.getFileHandle(filename, {
+                create: true,
+              });
               const writable = await fileHandle.createWritable();
               await writable.write(blob);
               await writable.close();
               console.log('✅ 스크린샷 재저장 완료 (폴더):', filename);
             } else if (permission === 'prompt') {
-              const newPermission = await extendedDir.requestPermission({ mode: 'readwrite' });
+              const newPermission = await extendedDir.requestPermission({
+                mode: 'readwrite',
+              });
               if (newPermission === 'granted') {
-                const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
+                const fileHandle = await saveDirectory.getFileHandle(filename, {
+                  create: true,
+                });
                 const writable = await fileHandle.createWritable();
                 await writable.write(blob);
                 await writable.close();
@@ -802,14 +875,17 @@ export default function ScreenshotTime() {
             // 스킵된 경우
             alert('✅ ' + result.warnings[0]);
           } else if (result.warnings.length > 0) {
-            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${result.faceCount}개\n\n${result.warnings.join('\n')}`;
+            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${
+              result.faceCount
+            }개\n\n${result.warnings.join('\n')}`;
             alert(warningMsg);
           } else {
-            alert(`얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`);
+            alert(
+              `얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`
+            );
           }
         }
       }, 'image/png');
-
     } catch (error) {
       console.error('❌ 스크린샷 재촬영 실패:', error);
       alert('스크린샷 재촬영에 실패했습니다. 권한을 확인해주세요.');
@@ -837,7 +913,9 @@ export default function ScreenshotTime() {
     }
 
     if (!modelRef.current) {
-      alert('얼굴 인식 모델이 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
+      alert(
+        '얼굴 인식 모델이 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.'
+      );
       return;
     }
 
@@ -898,7 +976,11 @@ export default function ScreenshotTime() {
 
         // 신뢰도 표시
         ctx.font = '16px Arial';
-        ctx.fillText(`${(detection.score * 100).toFixed(1)}%`, box.x, box.y + box.height + 20);
+        ctx.fillText(
+          `${(detection.score * 100).toFixed(1)}%`,
+          box.x,
+          box.y + box.height + 20
+        );
       });
 
       // canvas를 이미지 URL로 변환
@@ -916,11 +998,13 @@ export default function ScreenshotTime() {
     }
   };
 
-  const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
+  const sortedSlots = [...timeSlots].sort((a, b) =>
+    a.time.localeCompare(b.time)
+  );
 
   return (
     <div className={`min-h-screen ${colors.bg} transition-colors duration-300`}>
-      <div className='max-w-4xl mx-auto p-6'>
+      <div className='max-w-7xl mx-auto py-6 flex flex-col min-h-[calc(100vh-8rem)]'>
         <div className='mb-6 flex justify-between items-center'>
           <Link
             to='/'
@@ -928,345 +1012,421 @@ export default function ScreenshotTime() {
           >
             ← 대시보드로 돌아가기
           </Link>
-
-          <div className='flex items-center gap-2'>
-            <label className={`text-sm font-medium ${colors.text}`}>🎨 테마:</label>
-            <select
-              value={theme}
-              onChange={(e) => setTheme(e.target.value as ThemeType)}
-              className={`px-3 py-2 ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all`}
-            >
-              {(Object.keys(THEME_PRESETS) as ThemeType[]).map((key) => (
-                <option key={key} value={key}>
-                  {THEME_PRESETS[key].name}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
-        <div className={`${colors.card} rounded-lg shadow-md p-6 mb-6 transition-colors duration-300`}>
-        <div className='flex justify-between items-center mb-6'>
+        <div className='flex-1 flex flex-col justify-between'>
           <div>
-            <h1 className={`text-3xl font-bold ${colors.text}`}>
-              스크린샷 타임 📸
-            </h1>
-            <p className={`${colors.textSecondary} mt-2`}>
-              설정된 시간에 카운트다운을 시작합니다
-            </p>
-          </div>
-          <div className='text-center'>
-            <div className={`text-3xl font-bold ${colors.link} mb-1`}>
-              {currentTime.toLocaleTimeString('ko-KR', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              })}
-            </div>
-            <div className={`text-sm ${colors.textSecondary}`}>
-              {currentTime.toLocaleDateString('ko-KR', {
-                month: 'long',
-                day: 'numeric',
-                weekday: 'short',
-              })}
-            </div>
-          </div>
-        </div>
-
-        {isCountingDown && countdown !== null && (
-          <div className='bg-red-50 border-4 border-red-500 rounded-xl p-8 mb-6 text-center animate-pulse'>
-            <div className='text-6xl font-bold text-red-600 mb-2'>
-              {countdown}초
-            </div>
-            <p className='text-xl text-red-700 font-semibold'>
-              {countdown > 30
-                ? '준비하세요!'
-                : countdown > 10
-                ? '곧 스크린샷 시간입니다!'
-                : '카운트다운!'}
-            </p>
-          </div>
-        )}
-
-        <div className='flex gap-3 mb-6'>
-          <button
-            onClick={toggleActive}
-            className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg transition-colors text-white ${
-              isActive
-                ? 'bg-red-500 hover:bg-red-600'
-                : `${colors.primary} ${colors.primaryHover}`
-            }`}
-          >
-            {isActive ? '📸 타이머 활성화됨 (클릭하여 중지)' : '▶️ 타이머 시작'}
-          </button>
-          <button
-            onClick={captureScreenshot}
-            disabled={isCapturing || isAnalyzing}
-            className={`px-6 py-4 ${colors.secondary} ${colors.secondaryHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {isCapturing ? '📸 캡처 중...' : isAnalyzing ? '🔍 분석 중...' : '📸 스크린샷'}
-          </button>
-          <button
-            onClick={retakeScreenshot}
-            disabled={isCapturing || isAnalyzing || !lastCanvasRef.current}
-            className={`px-6 py-4 ${colors.accent} ${colors.accentHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {isCapturing ? '📸 캡처 중...' : isAnalyzing ? '🔍 분석 중...' : '🔄 재촬영'}
-          </button>
-          <button
-            onClick={testCountdown}
-            className={`px-6 py-4 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium`}
-          >
-            테스트 (60초)
-          </button>
-        </div>
-
-        <div className='mb-6'>
-          <div className='bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3'>
-            <div className='flex items-center justify-between'>
-              <div>
-                <p className='text-sm font-medium text-gray-700 mb-1'>저장 폴더</p>
-                <p className='text-sm text-gray-600'>📁 {savePath}</p>
-              </div>
-              <button
-                onClick={selectSaveDirectory}
-                className='px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium'
-              >
-                폴더 선택
-              </button>
-            </div>
-            <p className='text-xs text-gray-500 mt-2'>
-              ※ Chrome/Edge에서만 폴더 선택 가능. 다른 브라우저는 다운로드 폴더에 자동 저장됩니다.
-            </p>
-          </div>
-
-          <div className='bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3'>
-            <div className='flex items-center justify-between mb-3'>
-              <label className='flex items-center cursor-pointer'>
-                <input
-                  type='checkbox'
-                  checked={usePrefixEnabled}
-                  onChange={(e) => setUsePrefixEnabled(e.target.checked)}
-                  className='w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500'
-                />
-                <span className='ml-2 text-sm font-medium text-gray-700'>
-                  파일명 프리픽스 사용
-                </span>
-              </label>
-            </div>
-            {usePrefixEnabled && (
-              <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>
-                  프리픽스
-                </label>
-                <input
-                  type='text'
-                  value={filenamePrefix}
-                  onChange={(e) => setFilenamePrefix(e.target.value)}
-                  placeholder='예: lecture, class'
-                  className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
-                />
-                <p className='text-xs text-gray-500 mt-2'>
-                  {filenamePrefix
-                    ? `파일명 예시: ${filenamePrefix}_25-11-14-09-00.png`
-                    : '프리픽스를 입력하세요'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className={`${colors.card} ${colors.border} border rounded-lg p-4 mb-3`}>
-            <label className='flex items-center cursor-pointer'>
-              <input
-                type='checkbox'
-                checked={faceDetectionEnabled}
-                onChange={(e) => setFaceDetectionEnabled(e.target.checked)}
-                className='w-4 h-4 border-gray-300 rounded focus:ring-2'
-              />
-              <span className={`ml-2 text-sm font-medium ${colors.text}`}>
-                🤖 얼굴 인식 활성화
-              </span>
-            </label>
-            <p className={`text-xs ${colors.textSecondary} mt-2 ml-6`}>
-              스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. SSD MobileNet 모델을 사용하여 높은 정확도로 얼굴을 감지합니다. "운영진/운영/KDT/오르미" 텍스트가 있는 화면은 자동으로 건너뜁니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
-            </p>
-
-            <label className='flex items-center cursor-pointer mt-3'>
-              <input
-                type='checkbox'
-                checked={ocrEnabled}
-                onChange={(e) => setOcrEnabled(e.target.checked)}
-                disabled={!faceDetectionEnabled}
-                className='w-4 h-4 border-gray-300 rounded focus:ring-2 disabled:opacity-50'
-              />
-              <span className={`ml-2 text-sm font-medium ${colors.text}`}>
-                📝 이름 인식 (OCR)
-              </span>
-            </label>
-            <p className={`text-xs ${colors.textSecondary} mt-2 ml-6`}>
-              OCR로 화면에서 이름을 감지하여 경고 메시지에 표시합니다. 분석 시간이 10-15초 추가될 수 있습니다. 비활성화하면 "얼굴 1", "얼굴 2"로 표시됩니다.
-            </p>
-          </div>
-
-          <div className={`${colors.card} ${colors.border} border rounded-lg p-4 mb-3`}>
-            <h3 className={`font-bold ${colors.text} mb-3`}>🧪 얼굴 인식 테스트</h3>
-            <p className={`text-xs ${colors.textSecondary} mb-3`}>
-              이미 촬영한 줌 갤러리 화면을 업로드하여 얼굴 인식 정확도를 테스트할 수 있습니다.
-            </p>
-            <div className='flex gap-2 mb-3'>
-              <input
-                type='file'
-                accept='image/*'
-                onChange={handleTestImageUpload}
-                className={`flex-1 px-3 py-2 text-sm ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 transition-all`}
-              />
-              <button
-                onClick={testFaceDetection}
-                disabled={!testImage || isTesting}
-                className={`px-4 py-2 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {isTesting ? '🔍 분석 중...' : '🧪 테스트 실행'}
-              </button>
-            </div>
-
-            {testResult && (
-              <div className={`mt-4 p-4 ${colors.card} rounded-lg ${colors.border} border-2`}>
-                <h4 className={`font-bold ${colors.text} mb-3 text-lg`}>
-                  📊 테스트 결과
-                </h4>
-                <div className='text-sm space-y-2'>
-                  {testResult.faceCount === -1 ? (
-                    <p className={`font-medium ${colors.link} text-base`}>
-                      ✅ {testResult.warnings[0]}
-                    </p>
-                  ) : (
-                    <>
-                      <p className={`font-medium ${colors.text} text-base`}>
-                        감지된 얼굴: <span className={`${colors.link} font-bold text-xl`}>{testResult.faceCount}개</span>
-                      </p>
-                      {testResult.warnings.length > 0 && (
-                        <div className='mt-3'>
-                          <p className='font-medium text-orange-600 mb-2 text-base'>⚠️ 경고:</p>
-                          <ul className={`list-disc list-inside ${colors.textSecondary} space-y-1 ml-2`}>
-                            {testResult.warnings.map((warning, idx) => (
-                              <li key={idx} className="text-sm">{warning}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {testResult.warnings.length === 0 && testResult.faceCount > 0 && (
-                        <p className='text-green-600 font-medium mt-3 text-base'>
-                          ✅ 모든 얼굴이 정상적으로 감지되었습니다!
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {testCanvasUrl && (
-                  <div className='mt-4'>
-                    <p className={`text-xs ${colors.textSecondary} mb-2`}>
-                      감지된 얼굴에 녹색 박스가 표시됩니다:
-                    </p>
-                    <img
-                      src={testCanvasUrl}
-                      alt='Face detection result'
-                      className={`w-full ${colors.border} border-2 rounded`}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className='flex gap-2'>
-            <button
-              onClick={resetToDefault}
-              className='px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium'
+            <div
+              className={`${colors.card} rounded-lg shadow-md p-6 mb-6 transition-colors duration-300`}
             >
-              기본값으로 초기화
-            </button>
-            <button
-              onClick={resetTriggers}
-              className='px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium'
-            >
-              트리거 초기화
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className='space-y-3'>
-        {sortedSlots.map((slot) => (
-          <div
-            key={slot.id}
-            className={`bg-white rounded-lg shadow-md p-4 transition-all ${
-              slot.enabled ? 'border-l-4 border-purple-500' : 'opacity-60'
-            } ${slot.triggered ? 'bg-green-50' : ''}`}
-          >
-            <div className='flex items-center justify-between'>
-              <div className='flex items-center flex-1'>
-                <div className='text-3xl font-bold text-purple-600 w-24'>
-                  {slot.time}
-                </div>
-                <div className='flex-1'>
-                  <p className='text-lg font-medium text-gray-800'>
-                    스크린샷 타임
+              <div className='flex justify-between items-center mb-6'>
+                <div>
+                  <h1 className={`text-3xl font-bold ${colors.text}`}>
+                    스크린샷 타임 📸
+                  </h1>
+                  <p className={`${colors.textSecondary} mt-2`}>
+                    설정된 시간에 카운트다운을 시작합니다
                   </p>
-                  {slot.triggered && (
-                    <p className='text-sm text-green-600'>✓ 오늘 실행됨</p>
-                  )}
+                </div>
+                <div className='text-center'>
+                  <div className={`text-3xl font-bold ${colors.link} mb-1`}>
+                    {currentTime.toLocaleTimeString('ko-KR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })}
+                  </div>
+                  <div className={`text-sm ${colors.textSecondary}`}>
+                    {currentTime.toLocaleDateString('ko-KR', {
+                      month: 'long',
+                      day: 'numeric',
+                      weekday: 'short',
+                    })}
+                  </div>
                 </div>
               </div>
-              <div className='flex gap-2'>
+
+              {isCountingDown && countdown !== null && (
+                <div className='bg-red-50 border-4 border-red-500 rounded-xl p-8 mb-6 text-center animate-pulse'>
+                  <div className='text-6xl font-bold text-red-600 mb-2'>
+                    {countdown}초
+                  </div>
+                  <p className='text-xl text-red-700 font-semibold'>
+                    {countdown > 30
+                      ? '준비하세요!'
+                      : countdown > 10
+                      ? '곧 스크린샷 시간입니다!'
+                      : '카운트다운!'}
+                  </p>
+                </div>
+              )}
+
+              <div className='flex gap-3 mb-6'>
                 <button
-                  onClick={() => toggleSlot(slot.id)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    slot.enabled
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  onClick={toggleActive}
+                  className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg transition-colors text-white ${
+                    isActive
+                      ? 'bg-red-500 hover:bg-red-600'
+                      : `${colors.primary} ${colors.primaryHover}`
                   }`}
                 >
-                  {slot.enabled ? '활성화' : '비활성화'}
+                  {isActive
+                    ? '📸 타이머 활성화됨 (클릭하여 중지)'
+                    : '▶️ 타이머 시작'}
+                </button>
+                <button
+                  onClick={captureScreenshot}
+                  disabled={isCapturing || isAnalyzing}
+                  className={`px-6 py-4 ${colors.secondary} ${colors.secondaryHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isCapturing
+                    ? '📸 캡처 중...'
+                    : isAnalyzing
+                    ? '🔍 분석 중...'
+                    : '📸 스크린샷'}
+                </button>
+                <button
+                  onClick={retakeScreenshot}
+                  disabled={
+                    isCapturing || isAnalyzing || !lastCanvasRef.current
+                  }
+                  className={`px-6 py-4 ${colors.accent} ${colors.accentHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isCapturing
+                    ? '📸 캡처 중...'
+                    : isAnalyzing
+                    ? '🔍 분석 중...'
+                    : '🔄 재촬영'}
+                </button>
+                <button
+                  onClick={testCountdown}
+                  className={`px-6 py-4 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium`}
+                >
+                  테스트 (60초)
                 </button>
               </div>
+
+              <div className='mb-6'>
+                <div className='bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3'>
+                  <div className='flex items-center justify-between'>
+                    <div>
+                      <p className='text-sm font-medium text-gray-700 mb-1'>
+                        저장 폴더
+                      </p>
+                      <p className='text-sm text-gray-600'>📁 {savePath}</p>
+                    </div>
+                    <button
+                      onClick={selectSaveDirectory}
+                      className='px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium'
+                    >
+                      폴더 선택
+                    </button>
+                  </div>
+                  <p className='text-xs text-gray-500 mt-2'>
+                    ※ Chrome/Edge에서만 폴더 선택 가능. 다른 브라우저는 다운로드
+                    폴더에 자동 저장됩니다.
+                  </p>
+                </div>
+
+                <div className='bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3'>
+                  <div className='flex items-center justify-between mb-3'>
+                    <label className='flex items-center cursor-pointer'>
+                      <input
+                        type='checkbox'
+                        checked={usePrefixEnabled}
+                        onChange={(e) => setUsePrefixEnabled(e.target.checked)}
+                        className='w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500'
+                      />
+                      <span className='ml-2 text-sm font-medium text-gray-700'>
+                        파일명 프리픽스 사용
+                      </span>
+                    </label>
+                  </div>
+                  {usePrefixEnabled && (
+                    <div>
+                      <label className='block text-sm font-medium text-gray-700 mb-1'>
+                        프리픽스
+                      </label>
+                      <input
+                        type='text'
+                        value={filenamePrefix}
+                        onChange={(e) => setFilenamePrefix(e.target.value)}
+                        placeholder='예: lecture, class'
+                        className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                      />
+                      <p className='text-xs text-gray-500 mt-2'>
+                        {filenamePrefix
+                          ? `파일명 예시: ${filenamePrefix}_25-11-14-09-00.png`
+                          : '프리픽스를 입력하세요'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className={`${colors.card} ${colors.border} border rounded-lg p-4 mb-3`}
+                >
+                  <label className='flex items-center cursor-pointer'>
+                    <input
+                      type='checkbox'
+                      checked={faceDetectionEnabled}
+                      onChange={(e) =>
+                        setFaceDetectionEnabled(e.target.checked)
+                      }
+                      className='w-4 h-4 border-gray-300 rounded focus:ring-2'
+                    />
+                    <span className={`ml-2 text-sm font-medium ${colors.text}`}>
+                      🤖 얼굴 인식 활성화
+                    </span>
+                  </label>
+                  <p className={`text-xs ${colors.textSecondary} mt-2 ml-6`}>
+                    스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를
+                    알려드립니다. SSD MobileNet 모델을 사용하여 높은 정확도로
+                    얼굴을 감지합니다. "운영진/운영/KDT/오르미" 텍스트가 있는
+                    화면은 자동으로 건너뜁니다. 얼굴이 너무 작거나 화면
+                    가장자리에서 잘리는 경우 경고합니다.
+                  </p>
+
+                  <label className='flex items-center cursor-pointer mt-3'>
+                    <input
+                      type='checkbox'
+                      checked={ocrEnabled}
+                      onChange={(e) => setOcrEnabled(e.target.checked)}
+                      disabled={!faceDetectionEnabled}
+                      className='w-4 h-4 border-gray-300 rounded focus:ring-2 disabled:opacity-50'
+                    />
+                    <span className={`ml-2 text-sm font-medium ${colors.text}`}>
+                      📝 이름 인식 (OCR)
+                    </span>
+                  </label>
+                  <p className={`text-xs ${colors.textSecondary} mt-2 ml-6`}>
+                    OCR로 화면에서 이름을 감지하여 경고 메시지에 표시합니다.
+                    분석 시간이 10-15초 추가될 수 있습니다. 비활성화하면 "얼굴
+                    1", "얼굴 2"로 표시됩니다.
+                  </p>
+                </div>
+
+                <div
+                  className={`${colors.card} ${colors.border} border rounded-lg p-4 mb-3`}
+                >
+                  <h3 className={`font-bold ${colors.text} mb-3`}>
+                    🧪 얼굴 인식 테스트
+                  </h3>
+                  <p className={`text-xs ${colors.textSecondary} mb-3`}>
+                    이미 촬영한 줌 갤러리 화면을 업로드하여 얼굴 인식 정확도를
+                    테스트할 수 있습니다.
+                  </p>
+                  <div className='flex gap-2 mb-3'>
+                    <input
+                      type='file'
+                      accept='image/*'
+                      onChange={handleTestImageUpload}
+                      className={`flex-1 px-3 py-2 text-sm ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 transition-all`}
+                    />
+                    <button
+                      onClick={testFaceDetection}
+                      disabled={!testImage || isTesting}
+                      className={`px-4 py-2 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {isTesting ? '🔍 분석 중...' : '🧪 테스트 실행'}
+                    </button>
+                  </div>
+
+                  {testResult && (
+                    <div
+                      className={`mt-4 p-4 ${colors.card} rounded-lg ${colors.border} border-2`}
+                    >
+                      <h4 className={`font-bold ${colors.text} mb-3 text-lg`}>
+                        📊 테스트 결과
+                      </h4>
+                      <div className='text-sm space-y-2'>
+                        {testResult.faceCount === -1 ? (
+                          <p className={`font-medium ${colors.link} text-base`}>
+                            ✅ {testResult.warnings[0]}
+                          </p>
+                        ) : (
+                          <>
+                            <p
+                              className={`font-medium ${colors.text} text-base`}
+                            >
+                              감지된 얼굴:{' '}
+                              <span
+                                className={`${colors.link} font-bold text-xl`}
+                              >
+                                {testResult.faceCount}개
+                              </span>
+                            </p>
+                            {testResult.warnings.length > 0 && (
+                              <div className='mt-3'>
+                                <p className='font-medium text-orange-600 mb-2 text-base'>
+                                  ⚠️ 경고:
+                                </p>
+                                <ul
+                                  className={`list-disc list-inside ${colors.textSecondary} space-y-1 ml-2`}
+                                >
+                                  {testResult.warnings.map((warning, idx) => (
+                                    <li key={idx} className='text-sm'>
+                                      {warning}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {testResult.warnings.length === 0 &&
+                              testResult.faceCount > 0 && (
+                                <p className='text-green-600 font-medium mt-3 text-base'>
+                                  ✅ 모든 얼굴이 정상적으로 감지되었습니다!
+                                </p>
+                              )}
+                          </>
+                        )}
+                      </div>
+
+                      {testCanvasUrl && (
+                        <div className='mt-4'>
+                          <p className={`text-xs ${colors.textSecondary} mb-2`}>
+                            감지된 얼굴에 녹색 박스가 표시됩니다:
+                          </p>
+                          <img
+                            src={testCanvasUrl}
+                            alt='Face detection result'
+                            className={`w-full ${colors.border} border-2 rounded`}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className='flex gap-2'>
+                  <button
+                    onClick={resetToDefault}
+                    className='px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium'
+                  >
+                    기본값으로 초기화
+                  </button>
+                  <button
+                    onClick={resetTriggers}
+                    className='px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium'
+                  >
+                    트리거 초기화
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className='space-y-3'>
+              {sortedSlots.map((slot) => (
+                <div
+                  key={slot.id}
+                  className={`bg-white rounded-lg shadow-md p-4 transition-all ${
+                    slot.enabled ? 'border-l-4 border-purple-500' : 'opacity-60'
+                  } ${slot.triggered ? 'bg-green-50' : ''}`}
+                >
+                  <div className='flex items-center justify-between'>
+                    <div className='flex items-center flex-1'>
+                      <div className='text-3xl font-bold text-purple-600 w-24'>
+                        {slot.time}
+                      </div>
+                      <div className='flex-1'>
+                        <p className='text-lg font-medium text-gray-800'>
+                          스크린샷 타임
+                        </p>
+                        {slot.triggered && (
+                          <p className='text-sm text-green-600'>
+                            ✓ 오늘 실행됨
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className='flex gap-2'>
+                      <button
+                        onClick={() => toggleSlot(slot.id)}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          slot.enabled
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {slot.enabled ? '활성화' : '비활성화'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
 
-      <div className='mt-6 bg-purple-50 rounded-lg p-4'>
-        <h3 className='font-bold text-purple-900 mb-2'>💡 사용 방법</h3>
-        <ul className='text-sm text-purple-800 space-y-1'>
-          <li>
-            • 타이머 시작 버튼을 누르면 설정된 시간에 자동으로 60초 카운트다운이
-            시작됩니다
-          </li>
-          <li>• 30초 남았을 때 알림음과 함께 알림이 표시됩니다</li>
-          <li>• 10초부터는 매초마다 삐 소리가 납니다</li>
-          <li>• <strong>폴더 선택</strong>으로 스크린샷 저장 위치 지정 (Chrome/Edge만)</li>
-          <li>• <strong>프리픽스 사용</strong>으로 파일명 앞에 원하는 텍스트 추가 가능 (예: lecture_25-11-14-09-00.png)</li>
-          <li>• <strong>얼굴 인식</strong>을 활성화하면 스크린샷 촬영 후 자동으로 얼굴을 감지하여 결과를 알려드립니다</li>
-          <li>• <strong>얼굴 인식 테스트</strong>로 이미 찍은 줌 갤러리 화면을 업로드하여 감지 정확도를 확인할 수 있습니다</li>
-          <li>• <strong>스크린샷 버튼</strong>을 누르면 전체 화면을 캡처합니다 (멀티 모니터 선택 가능)</li>
-          <li>• <strong>재촬영 버튼</strong>으로 문제가 있을 때 다시 촬영할 수 있습니다</li>
-          <li>• 파일명 형식: YY-MM-DD-HH-MM.png (예: 25-11-14-09-00.png)</li>
-          <li>• 같은 시간대에 여러 장 촬영 시 자동으로 (1), (2), (3)... 번호가 붙습니다</li>
-          <li>• 같은 시간의 카운트다운은 하루에 한 번만 실행됩니다</li>
-          <li>• 자정이 지나면 모든 트리거 상태가 초기화됩니다</li>
-        </ul>
+          <div className='bg-purple-50 rounded-lg p-4'>
+            <h3 className='font-bold text-purple-900 mb-2'>💡 사용 방법</h3>
+            <ul className='text-sm text-purple-800 space-y-1'>
+              <li>
+                • 타이머 시작 버튼을 누르면 설정된 시간에 자동으로 60초
+                카운트다운이 시작됩니다
+              </li>
+              <li>• 30초 남았을 때 알림음과 함께 알림이 표시됩니다</li>
+              <li>• 10초부터는 매초마다 삐 소리가 납니다</li>
+              <li>
+                • <strong>폴더 선택</strong>으로 스크린샷 저장 위치 지정
+                (Chrome/Edge만)
+              </li>
+              <li>
+                • <strong>프리픽스 사용</strong>으로 파일명 앞에 원하는 텍스트
+                추가 가능 (예: lecture_25-11-14-09-00.png)
+              </li>
+              <li>
+                • <strong>얼굴 인식</strong>을 활성화하면 스크린샷 촬영 후
+                자동으로 얼굴을 감지하여 결과를 알려드립니다
+              </li>
+              <li>
+                • <strong>얼굴 인식 테스트</strong>로 이미 찍은 줌 갤러리 화면을
+                업로드하여 감지 정확도를 확인할 수 있습니다
+              </li>
+              <li>
+                • <strong>스크린샷 버튼</strong>을 누르면 전체 화면을 캡처합니다
+                (멀티 모니터 선택 가능)
+              </li>
+              <li>
+                • <strong>재촬영 버튼</strong>으로 문제가 있을 때 다시 촬영할 수
+                있습니다
+              </li>
+              <li>
+                • 파일명 형식: YY-MM-DD-HH-MM.png (예: 25-11-14-09-00.png)
+              </li>
+              <li>
+                • 같은 시간대에 여러 장 촬영 시 자동으로 (1), (2), (3)... 번호가
+                붙습니다
+              </li>
+              <li>• 같은 시간의 카운트다운은 하루에 한 번만 실행됩니다</li>
+              <li>• 자정이 지나면 모든 트리거 상태가 초기화됩니다</li>
+            </ul>
 
-        <div className='mt-4 pt-4 border-t border-purple-200'>
-          <h4 className='font-bold text-purple-900 mb-2'>🎯 줌 갤러리 화면 촬영 팁</h4>
-          <ul className='text-sm text-purple-800 space-y-1'>
-            <li>• 줌 갤러리 뷰에서 여러 사람의 얼굴을 한 번에 촬영할 수 있습니다</li>
-            <li>• 얼굴 인식 기능이 각 참가자의 얼굴 크기와 위치를 자동으로 분석합니다</li>
-            <li>• 얼굴이 화면 1% 미만으로 작거나, 화면 가장자리 5% 이내에 있으면 경고합니다</li>
-            <li>• 테스트 기능으로 미리 촬영된 이미지의 감지 정확도를 확인하세요</li>
-          </ul>
+            <div className='mt-4 pt-4 border-t border-purple-200'>
+              <h4 className='font-bold text-purple-900 mb-2'>
+                🎯 줌 갤러리 화면 촬영 팁
+              </h4>
+              <ul className='text-sm text-purple-800 space-y-1'>
+                <li>
+                  • 줌 갤러리 뷰에서 여러 사람의 얼굴을 한 번에 촬영할 수
+                  있습니다
+                </li>
+                <li>
+                  • 얼굴 인식 기능이 각 참가자의 얼굴 크기와 위치를 자동으로
+                  분석합니다
+                </li>
+                <li>
+                  • 얼굴이 화면 1% 미만으로 작거나, 화면 가장자리 5% 이내에
+                  있으면 경고합니다
+                </li>
+                <li>
+                  • 테스트 기능으로 미리 촬영된 이미지의 감지 정확도를
+                  확인하세요
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
     </div>
   );
 }

@@ -6,13 +6,18 @@ export default function Layout() {
   const { theme, setTheme, colors } = useTheme();
 
   return (
-    <div className={`flex flex-col min-h-screen ${colors.bg} transition-colors duration-300`}>
+    <div
+      className={`flex flex-col min-h-screen ${colors.bg} transition-colors duration-300`}
+    >
       {/* Header with full-width background */}
       <nav className={`${colors.card} shadow-md`}>
-        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+        <div className='w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full'>
           <div className='flex justify-between h-16'>
             <div className='flex items-center'>
-              <Link to='/' className={`text-2xl font-bold ${colors.link} transition-colors`}>
+              <Link
+                to='/'
+                className={`text-2xl font-bold ${colors.link} transition-colors`}
+              >
                 강의 유틸리티 킷
               </Link>
             </div>
@@ -25,7 +30,9 @@ export default function Layout() {
               </Link>
 
               <div className='flex items-center gap-2 ml-4'>
-                <label className={`text-xs font-medium ${colors.text}`}>🎨</label>
+                <label className={`text-xs font-medium ${colors.text}`}>
+                  🎨
+                </label>
                 <select
                   value={theme}
                   onChange={(e) => setTheme(e.target.value as ThemeType)}
@@ -44,8 +51,8 @@ export default function Layout() {
       </nav>
 
       {/* Main content with same max-width as header */}
-      <main className='flex-1'>
-        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+      <main className='flex-1 h-full flex flex-col justify-between'>
+        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-full flex-1 flex flex-col justify-between'>
           <Outlet />
         </div>
       </main>
