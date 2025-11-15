@@ -29,7 +29,7 @@ GitHub 저장소 → Settings → Secrets and variables → Actions → New repo
 
 4. **REMOTE_TARGET**: 서버의 배포 경로
    ```
-   /var/www/lecture-kit
+   /workspace/project/lecture-kit
    ```
 
 ### SSH 키 설정 (처음 한 번만)
@@ -73,18 +73,18 @@ npm run build
 
 ```bash
 # 로컬에서 서버로 dist 폴더 전송
-scp -r dist/* user@your-server:/var/www/lecture-kit/
+scp -r dist/* user@your-server:/workspace/project/lecture-kit/
 
 # 또는 rsync 사용 (더 효율적)
-rsync -avz --delete dist/ user@your-server:/var/www/lecture-kit/
+rsync -avz --delete dist/ user@your-server:/workspace/project/lecture-kit/
 ```
 
 ## 3. 서버에서 권한 설정
 
 ```bash
 # 서버에 SSH 접속 후
-sudo chown -R www-data:www-data /var/www/lecture-kit
-sudo chmod -R 755 /var/www/lecture-kit
+sudo chown -R www-data:www-data /workspace/project/lecture-kit
+sudo chmod -R 755 /workspace/project/lecture-kit
 ```
 
 ## 4. Nginx 설정
@@ -151,7 +151,7 @@ sudo systemctl enable certbot.timer
 ```bash
 #!/bin/bash
 npm run build
-rsync -avz --delete dist/ user@your-server:/var/www/lecture-kit/
+rsync -avz --delete dist/ user@your-server:/workspace/project/lecture-kit/
 echo "✅ 배포 완료!"
 ```
 
