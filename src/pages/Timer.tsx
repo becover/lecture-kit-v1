@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Timer() {
+  const { colors } = useTheme();
+
   const [minutes, setMinutes] = useState(10);
   const [seconds, setSeconds] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -88,19 +91,19 @@ export default function Timer() {
       <div className='mb-6'>
         <Link
           to='/'
-          className='text-indigo-600 hover:text-indigo-800 font-medium'
+          className={`${colors.link} ${colors.linkHover} font-medium transition-colors`}
         >
           ← 대시보드로 돌아가기
         </Link>
       </div>
 
-      <div className='bg-white rounded-lg shadow-md p-8'>
-        <h1 className='text-3xl font-bold text-gray-800 mb-6 text-center'>
+      <div className={`${colors.card} rounded-lg shadow-md p-8 ${colors.border} border transition-colors duration-300`}>
+        <h1 className={`text-3xl font-bold ${colors.text} mb-6 text-center`}>
           수업 타이머 ⏱
         </h1>
 
         <div className='mb-6'>
-          <label className='block text-sm font-medium text-gray-700 mb-2'>
+          <label className={`block text-sm font-medium ${colors.text} mb-2`}>
             타이머 이름 (선택)
           </label>
           <input
@@ -109,7 +112,7 @@ export default function Timer() {
             onChange={(e) => setTitle(e.target.value)}
             placeholder='예: 발표 시간, 시험 시간'
             disabled={isRunning}
-            className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100'
+            className={`w-full px-4 py-2 ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 transition-all disabled:opacity-50`}
           />
         </div>
 
@@ -119,7 +122,7 @@ export default function Timer() {
               key={preset.name}
               onClick={() => setPreset(preset.duration, preset.name)}
               disabled={isRunning}
-              className='px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+              className={`px-4 py-2 ${colors.card} ${colors.link} ${colors.border} border rounded-lg hover:opacity-80 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {preset.name}
               <br />
@@ -131,7 +134,7 @@ export default function Timer() {
         {!isRunning && timeLeft === 0 && (
           <div className='grid grid-cols-2 gap-4 mb-6'>
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-2'>
+              <label className={`block text-sm font-medium ${colors.text} mb-2`}>
                 분
               </label>
               <input
@@ -142,11 +145,11 @@ export default function Timer() {
                 onChange={(e) =>
                   setMinutes(Math.max(0, parseInt(e.target.value) || 0))
                 }
-                className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                className={`w-full px-4 py-2 ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 transition-all`}
               />
             </div>
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-2'>
+              <label className={`block text-sm font-medium ${colors.text} mb-2`}>
                 초
               </label>
               <input
@@ -159,7 +162,7 @@ export default function Timer() {
                     Math.min(59, Math.max(0, parseInt(e.target.value) || 0))
                   )
                 }
-                className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                className={`w-full px-4 py-2 ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 transition-all`}
               />
             </div>
           </div>
@@ -169,21 +172,21 @@ export default function Timer() {
           <>
             {title && (
               <div className='text-center mb-4'>
-                <h2 className='text-2xl font-semibold text-gray-700'>
+                <h2 className={`text-2xl font-semibold ${colors.text}`}>
                   {title}
                 </h2>
               </div>
             )}
 
-            <div className='w-full bg-gray-200 rounded-full h-4 mb-8'>
+            <div className={`w-full ${colors.border} border rounded-full h-4 mb-8 overflow-hidden`}>
               <div
-                className='h-4 bg-indigo-500 rounded-full transition-all duration-1000'
+                className={`h-4 ${colors.primary} rounded-full transition-all duration-1000`}
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
 
             <div className='text-center mb-8'>
-              <div className='text-8xl font-bold text-gray-800'>
+              <div className={`text-8xl font-bold ${colors.text}`}>
                 {formatTime(timeLeft)}
               </div>
             </div>
@@ -195,7 +198,7 @@ export default function Timer() {
             <button
               onClick={startTimer}
               disabled={minutes === 0 && seconds === 0}
-              className='px-8 py-4 bg-indigo-600 text-white rounded-lg text-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+              className={`px-8 py-4 ${colors.primary} ${colors.primaryHover} text-white rounded-lg text-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               시작
             </button>
@@ -206,14 +209,14 @@ export default function Timer() {
                 className={`px-8 py-4 rounded-lg text-xl font-bold text-white transition-colors ${
                   isRunning
                     ? 'bg-yellow-500 hover:bg-yellow-600'
-                    : 'bg-green-500 hover:bg-green-600'
+                    : `${colors.primary} ${colors.primaryHover}`
                 }`}
               >
                 {isRunning ? '일시정지' : '재개'}
               </button>
               <button
                 onClick={resetTimer}
-                className='px-8 py-4 bg-gray-500 text-white rounded-lg text-xl font-bold hover:bg-gray-600 transition-colors'
+                className={`px-8 py-4 ${colors.accent} ${colors.accentHover} text-white rounded-lg text-xl font-bold transition-colors`}
               >
                 초기화
               </button>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 interface TimeSlot {
   id: number;
@@ -22,6 +23,8 @@ const DEFAULT_TIME_SLOTS: Omit<TimeSlot, 'id' | 'notified'>[] = [
 ];
 
 export default function Pomodoro() {
+  const { colors } = useTheme();
+
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(() => {
     const saved = localStorage.getItem('lecture-time-slots');
     if (saved) {
@@ -300,31 +303,31 @@ export default function Pomodoro() {
       <div className='mb-6'>
         <Link
           to='/'
-          className='text-indigo-600 hover:text-indigo-800 font-medium'
+          className={`${colors.link} ${colors.linkHover} font-medium transition-colors`}
         >
           ← 대시보드로 돌아가기
         </Link>
       </div>
 
-      <div className='bg-white rounded-lg shadow-md p-6 mb-6'>
+      <div className={`${colors.card} rounded-lg shadow-md p-6 mb-6 ${colors.border} border transition-colors duration-300`}>
         <div className='flex justify-between items-center mb-6'>
           <div>
-            <h1 className='text-3xl font-bold text-gray-800'>
+            <h1 className={`text-3xl font-bold ${colors.text}`}>
               수업 시간표 알림 🔔
             </h1>
-            <p className='text-gray-600 mt-2'>
+            <p className={`${colors.textSecondary} mt-2`}>
               설정된 시간에 자동으로 알림을 받으세요
             </p>
           </div>
           <div className='text-center'>
-            <div className='text-3xl font-bold text-indigo-600 mb-1'>
+            <div className={`text-3xl font-bold ${colors.link} mb-1`}>
               {currentTime.toLocaleTimeString('ko-KR', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
               })}
             </div>
-            <div className='text-sm text-gray-500'>
+            <div className={`text-sm ${colors.textSecondary}`}>
               {currentTime.toLocaleDateString('ko-KR', {
                 month: 'long',
                 day: 'numeric',
@@ -359,17 +362,17 @@ export default function Pomodoro() {
           <button
             onClick={toggleActive}
             disabled={notificationPermission !== 'granted'}
-            className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg transition-colors ${
+            className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg transition-colors text-white ${
               isActive
-                ? 'bg-red-500 text-white hover:bg-red-600'
-                : 'bg-green-500 text-white hover:bg-green-600'
+                ? 'bg-red-500 hover:bg-red-600'
+                : `${colors.primary} ${colors.primaryHover}`
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {isActive ? '🔔 알림 활성화됨 (클릭하여 중지)' : '▶️ 알림 시작'}
           </button>
           <button
             onClick={testNotification}
-            className='px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium'
+            className={`px-6 py-4 ${colors.secondary} ${colors.secondaryHover} text-white rounded-lg transition-colors font-medium`}
           >
             테스트 알림
           </button>
@@ -378,13 +381,13 @@ export default function Pomodoro() {
         <div className='flex gap-2 mb-6'>
           <button
             onClick={addNewSlot}
-            className='px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium'
+            className={`px-4 py-2 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium`}
           >
             + 시간대 추가
           </button>
           <button
             onClick={resetToDefault}
-            className='px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium'
+            className={`px-4 py-2 ${colors.accent} ${colors.accentHover} text-white rounded-lg transition-colors font-medium`}
           >
             기본값으로 초기화
           </button>
@@ -395,33 +398,33 @@ export default function Pomodoro() {
         {sortedSlots.map((slot) => (
           <div
             key={slot.id}
-            className={`bg-white rounded-lg shadow-md p-4 transition-all ${
-              slot.enabled ? 'border-l-4 border-indigo-500' : 'opacity-60'
+            className={`${colors.card} rounded-lg shadow-md p-4 transition-all ${
+              slot.enabled ? `border-l-4 ${colors.border}` : 'opacity-60'
             } ${slot.notified ? 'bg-green-50' : ''}`}
           >
             {editingId === slot.id ? (
               <div className='space-y-3'>
                 <div className='grid grid-cols-2 gap-3'>
                   <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                    <label className={`block text-sm font-medium ${colors.text} mb-1`}>
                       시간
                     </label>
                     <input
                       type='time'
                       value={editTime}
                       onChange={(e) => setEditTime(e.target.value)}
-                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                      className={`w-full px-3 py-2 ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 transition-all`}
                     />
                   </div>
                   <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                    <label className={`block text-sm font-medium ${colors.text} mb-1`}>
                       메시지
                     </label>
                     <input
                       type='text'
                       value={editMessage}
                       onChange={(e) => setEditMessage(e.target.value)}
-                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                      className={`w-full px-3 py-2 ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 transition-all`}
                     />
                   </div>
                 </div>
@@ -443,11 +446,11 @@ export default function Pomodoro() {
             ) : (
               <div className='flex items-center justify-between'>
                 <div className='flex items-center flex-1'>
-                  <div className='text-3xl font-bold text-indigo-600 w-24'>
+                  <div className={`text-3xl font-bold ${colors.link} w-24`}>
                     {slot.time}
                   </div>
                   <div className='flex-1'>
-                    <p className='text-lg font-medium text-gray-800'>
+                    <p className={`text-lg font-medium ${colors.text}`}>
                       {slot.message}
                     </p>
                     {slot.notified && (
