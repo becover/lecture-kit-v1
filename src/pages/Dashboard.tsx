@@ -1,5 +1,6 @@
 import Card from '../components/Card';
 import { useTheme } from '../context/ThemeContext';
+import { BellRing, Timer, Camera } from 'lucide-react';
 
 export default function Dashboard() {
   const { colors } = useTheme();
@@ -15,21 +16,21 @@ export default function Dashboard() {
     {
       title: '수업 시간표 알림',
       description: '설정한 시간에 자동으로 알림을 받습니다',
-      icon: '🔔',
+      icon: <BellRing className='w-8 h-8 text-rose-500' />,
       to: '/pomodoro',
       color: 'border-red-500',
     },
     {
       title: '수업 타이머',
       description: '수업 시간 및 활동 시간 타이머',
-      icon: '⏱',
+      icon: <Timer className='w-8 h-8 text-sky-500' />,
       to: '/timer',
       color: 'border-blue-500',
     },
     {
       title: '스크린샷 타임',
       description: '설정된 시간에 카운트다운 타이머 실행',
-      icon: '📸',
+      icon: <Camera className='w-8 h-8 text-purple-500' />,
       to: '/screenshot-time',
       color: 'border-purple-500',
     },
@@ -50,7 +51,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className='flex flex-col flex-1 justify-between'>
+    <div className='flex flex-col flex-1 w-full justify-between'>
       <div>
         <div className='mb-8'>
           <h1 className={`text-4xl font-bold ${colors.text} mb-2`}>대시보드</h1>
@@ -65,8 +66,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className={`p-6 ${colors.card} rounded-lg shadow-md ${colors.border} border transition-colors duration-300`}>
-        <h2 className={`text-2xl font-bold ${colors.text} mb-4`}>사용 가이드</h2>
+      <div
+        className={`p-6 ${colors.card} rounded-lg shadow-md ${colors.border} border transition-colors duration-300`}
+      >
+        <h2 className={`text-2xl font-bold ${colors.text} mb-4`}>
+          사용 가이드
+        </h2>
         <ul className={`space-y-2 ${colors.textSecondary}`}>
           {/* <li>• <strong>출석 체크:</strong> 수업 시작 시 학생들의 출석을 빠르게 확인하세요</li> */}
           <li>

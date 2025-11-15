@@ -3,6 +3,29 @@ import { Link } from 'react-router-dom';
 import * as faceapi from '@vladmandic/face-api';
 import Tesseract from 'tesseract.js';
 import { useTheme } from '../context/ThemeContext';
+import { playSound, SOUNDS, type SoundType } from '../utils/sounds';
+import {
+  Camera as LCamera,
+  Play as LPlay,
+  Search as LSearch,
+  RefreshCw as LRefreshCw,
+  Clock as LClock,
+  Cpu as LCpu,
+  FileText as LFileText,
+  FlaskConical as LFlask,
+  BarChart3 as LBarChart,
+  AlertTriangle as LAlert,
+  Check as LCheck,
+  Folder as LFolder,
+  User as LUser,
+  Target as LTarget,
+  Info as LInfo,
+  X as LX,
+  Bell as LBell,
+  HelpCircle as LHelp,
+} from 'lucide-react';
+
+// 기존 커스텀 아이콘은 lucide-react로 대체되었습니다.
 
 interface TimeSlot {
   id: number;
@@ -72,6 +95,9 @@ export default function ScreenshotTime() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isCountingDown, setIsCountingDown] = useState(false);
+  const [countdownTargetMs, setCountdownTargetMs] = useState<number | null>(
+    null
+  );
   const [timeOffset, setTimeOffset] = useState(0); // 서버 시간과의 차이 (ms)
   const [isCapturing, setIsCapturing] = useState(false);
   const [saveDirectory, setSaveDirectory] =
@@ -93,6 +119,14 @@ export default function ScreenshotTime() {
     const saved = localStorage.getItem('screenshot-ocr-enabled');
     return saved === 'false'; // 기본값: 비활성화 (OCR이 느려서)
   });
+  const [captureDelayEnabled, setCaptureDelayEnabled] = useState(() => {
+    const saved = localStorage.getItem('screenshot-capture-delay');
+    return saved === 'true'; // 기본값: 활성화 (1초 딜레이)
+  });
+  const [soundType, setSoundType] = useState<SoundType>(() => {
+    const saved = localStorage.getItem('screenshot-sound-type');
+    return (saved as SoundType) || 'beep';
+  });
   const modelRef = useRef<boolean>(false);
   const lastCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [testImage, setTestImage] = useState<File | null>(null);
@@ -101,6 +135,13 @@ export default function ScreenshotTime() {
   );
   const [testCanvasUrl, setTestCanvasUrl] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  const [showSoundMenu, setShowSoundMenu] = useState(false);
+  // 미리보기 상태
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [previewResult, setPreviewResult] =
+    useState<FaceDetectionResult | null>(null);
 
   // @vladmandic/face-api 모델 로드
   useEffect(() => {
@@ -125,33 +166,60 @@ export default function ScreenshotTime() {
 
   // 서버 시간 동기화
   useEffect(() => {
-    const syncTime = async () => {
+    const syncOnce = async (): Promise<number | null> => {
       try {
-        // timeapi.io 사용 (worldtimeapi.org 대체)
-        const response = await fetch(
-          'https://timeapi.io/api/time/current/zone?timeZone=Asia/Seoul'
+        const t0 = Date.now();
+        const res = await fetch(
+          'https://timeapi.io/api/time/current/zone?timeZone=Asia/Seoul',
+          {
+            cache: 'no-store',
+          }
         );
-        if (!response.ok) throw new Error('Time sync failed');
-
-        const data = await response.json();
-        const serverTime = new Date(data.dateTime).getTime();
-        const clientTime = new Date().getTime();
-        const offset = serverTime - clientTime;
-
-        setTimeOffset(offset);
-        console.log('⏰ 시간 동기화 완료:', {
-          serverTime: new Date(serverTime).toISOString(),
-          clientTime: new Date(clientTime).toISOString(),
-          offset: `${offset}ms`,
-        });
+        const t1 = Date.now();
+        if (!res.ok) throw new Error('Time sync failed');
+        const data = await res.json();
+        const serverMs = new Date(data.dateTime).getTime();
+        const rtt = t1 - t0;
+        const clientMid = t0 + rtt / 2;
+        // 오프셋 = 서버시간 - (클라이언트 중간시각)
+        return serverMs - clientMid;
       } catch {
+        return null;
+      }
+    };
+    const syncTime = async () => {
+      const samples: number[] = [];
+      for (let i = 0; i < 5; i++) {
+        // 연속 샘플 사이의 간섭을 줄이기 위해 약간의 랜덤 대기
+        await new Promise((r) => setTimeout(r, 30 + Math.random() * 40));
+        const off = await syncOnce();
+        if (typeof off === 'number') samples.push(off);
+      }
+      if (samples.length > 0) {
+        // 중앙값 사용 (이상치 완화)
+        const sorted = samples.slice().sort((a, b) => a - b);
+        const median = sorted[Math.floor(sorted.length / 2)];
+        setTimeOffset(median);
+        console.log('⏰ 시간 동기화 완료(지연 보정):', {
+          samples,
+          chosenOffset: `${median}ms`,
+        });
+      } else {
         console.warn('⚠️ 서버 시간 동기화 실패, 클라이언트 시간 사용');
-        // 클라이언트 시간 사용 (offset = 0)
         setTimeOffset(0);
       }
     };
-
     syncTime();
+    // 탭 가시성/포커스 변경 시 재동기화 (백그라운드 타이머 클램핑 복구)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') syncTime();
+    };
+    window.addEventListener('focus', syncTime);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', syncTime);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   // 보정된 현재 시간 가져오기
@@ -159,13 +227,19 @@ export default function ScreenshotTime() {
     return new Date(new Date().getTime() + timeOffset);
   }, [timeOffset]);
 
-  // 현재 시간 업데이트
+  // 현재 시간 업데이트 (OS 시계와 초 경계 정렬)
   useEffect(() => {
-    const interval = setInterval(() => {
+    let timer: number | undefined;
+    const tick = () => {
       setCurrentTime(getAccurateTime());
-    }, 1000);
-
-    return () => clearInterval(interval);
+      const now = Date.now();
+      const delay = 1000 - (now % 1000) + 1; // 다음 초 경계까지 대기
+      timer = window.setTimeout(tick, delay);
+    };
+    tick();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [getAccurateTime]);
 
   // 시간대 저장
@@ -198,6 +272,17 @@ export default function ScreenshotTime() {
     localStorage.setItem('screenshot-ocr-enabled', String(ocrEnabled));
   }, [ocrEnabled]);
 
+  useEffect(() => {
+    localStorage.setItem(
+      'screenshot-capture-delay',
+      String(captureDelayEnabled)
+    );
+  }, [captureDelayEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('screenshot-sound-type', soundType);
+  }, [soundType]);
+
   // 자정에 triggered 상태 초기화
   useEffect(() => {
     const checkMidnight = setInterval(() => {
@@ -216,13 +301,8 @@ export default function ScreenshotTime() {
 
   // 알림음 재생
   const playBeep = useCallback(() => {
-    const audio = new Audio(
-      'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVanm7q1aFQ1Ln+Pxv3IeBi6Cz/PWhzYHImzB7+WaTg4NUqnl762cFAxKnuPvwnAhBSx/zvPYiDYHI3DB7uOaSQ4NUqbl761dFQ1Ln+PvwnAhBSyAz/PXhzUHIm/A7uKZSg0PVKjl7axdFQxLn+PvwnAhBSx/zvPYhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnEhBSyBz/PWhzUHIm/A7uSZSw4PU6fk7axcFQxLn+PwwnEhBiyAzvPWhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnAhBSyAzvPXiDUHIm/A7uOaSw4PU6fk7axdFQxLn+PvwnEhBSyAzvPWhzYHI2/A7uKZSw4PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHInDB7uOZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHInDB7uOZSg0PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHI3DB7uOZSQ0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxL'
-    );
-    audio.play().catch(() => {
-      console.log('⚠️ 오디오 재생 실패');
-    });
-  }, []);
+    playSound(soundType);
+  }, [soundType]);
 
   // 30초 알림
   const notify30Seconds = useCallback(() => {
@@ -238,43 +318,37 @@ export default function ScreenshotTime() {
     }
   }, [playBeep]);
 
-  // 카운트다운 체크
+  // 카운트다운 값 계산(초 경계 정렬된 현재시각 기반, 파생값)
   useEffect(() => {
-    if (!isActive || !isCountingDown || countdown === null) return;
-
-    if (countdown === 30) {
+    if (!isCountingDown || countdownTargetMs === null) return;
+    const nowMs = getAccurateTime().getTime();
+    const remain = Math.max(0, Math.floor((countdownTargetMs - nowMs) / 1000));
+    // 30초/10초 경고 및 종료 비프
+    if (remain === 30) {
       notify30Seconds();
-    } else if (countdown <= 10 && countdown > 0) {
+    } else if (remain <= 10 && remain > 0) {
       playBeep();
-    } else if (countdown === 0) {
+    } else if (remain === 0) {
       playBeep();
-      // 비동기로 상태 업데이트하여 cascading renders 방지
-      setTimeout(() => {
-        setIsCountingDown(false);
-        setCountdown(null);
-      }, 0);
+      setIsCountingDown(false);
+      setCountdownTargetMs(null);
     }
-  }, [countdown, isActive, isCountingDown, notify30Seconds, playBeep]);
+    setCountdown(remain);
+  }, [
+    currentTime,
+    isCountingDown,
+    countdownTargetMs,
+    getAccurateTime,
+    notify30Seconds,
+    playBeep,
+  ]);
 
-  // 카운트다운 타이머
-  useEffect(() => {
-    if (!isCountingDown || countdown === null) return;
-
-    const timer = setTimeout(() => {
-      setCountdown((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [countdown, isCountingDown]);
-
-  // 시간대 체크 및 카운트다운 시작
+  // 시간대 체크 및 카운트다운 시작 (정확히 60초 전, 지연보정)
   useEffect(() => {
     if (!isActive || isCountingDown) return;
 
     const now = getAccurateTime();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentSecond = now.getSeconds();
+    const nowMs = now.getTime();
 
     timeSlots.forEach((slot) => {
       if (!slot.enabled || slot.triggered) return;
@@ -282,22 +356,20 @@ export default function ScreenshotTime() {
       // 목표 시간 파싱
       const [targetHour, targetMinute] = slot.time.split(':').map(Number);
 
-      // 목표 시간을 초 단위로 변환
-      const targetTimeInSeconds = targetHour * 3600 + targetMinute * 60;
-      // 현재 시간을 초 단위로 변환
-      const currentTimeInSeconds =
-        currentHour * 3600 + currentMinute * 60 + currentSecond;
+      // 오늘 날짜의 목표 시각(ms)
+      const target = new Date(now);
+      target.setHours(targetHour, targetMinute, 0, 0);
+      const targetMs = target.getTime();
 
       // 목표 시간 60초 전에 카운트다운 시작
-      const startTimeInSeconds = targetTimeInSeconds - 60;
+      const startMs = targetMs - 60000;
 
-      // 정확히 60초 전일 때만 시작 (±2초 오차 허용)
-      if (Math.abs(currentTimeInSeconds - startTimeInSeconds) <= 2) {
+      // 정확히 60초 전 근처(±300ms)일 때만 시작
+      if (Math.abs(nowMs - startMs) <= 300) {
         console.log(`🎯 카운트다운 시작: ${slot.time}에 맞춰 정확히 실행`);
 
-        // 정확한 남은 시간 계산
-        const exactCountdown = targetTimeInSeconds - currentTimeInSeconds;
-        setCountdown(exactCountdown > 0 ? exactCountdown : 60);
+        // 목표 ms 저장 후 파생적으로 countdown 계산
+        setCountdownTargetMs(targetMs);
         setIsCountingDown(true);
 
         // 트리거 상태 업데이트
@@ -637,6 +709,12 @@ export default function ScreenshotTime() {
 
       console.log('✅ 화면 스트림 획득 성공');
 
+      // 화면 선택 후 딜레이 (옵션 활성화된 경우)
+      if (captureDelayEnabled) {
+        console.log('⏳ 1초 대기 중... (화면 전환 시간)');
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
       // video 엘리먼트 생성
       const video = document.createElement('video');
       video.srcObject = stream;
@@ -726,28 +804,25 @@ export default function ScreenshotTime() {
 
         setIsCapturing(false);
 
+        // 미리보기 이미지 URL 생성
+        const previewUrl = URL.createObjectURL(blob);
+        setPreviewImageUrl(previewUrl);
+        setShowPreview(true);
+        setPreviewResult(null); // 초기화
+
         // 얼굴 인식이 활성화된 경우 분석 실행
         if (faceDetectionEnabled) {
           setIsAnalyzing(true);
           console.log('🔍 얼굴 분석 시작...');
           const result = await analyzeFaces(canvas);
           setIsAnalyzing(false);
-
-          // 결과 알림
-          if (result.faceCount === -1) {
-            // 스킵된 경우
-            alert('✅ ' + result.warnings[0]);
-          } else if (result.warnings.length > 0) {
-            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${
-              result.faceCount
-            }개\n\n${result.warnings.join('\n')}`;
-            alert(warningMsg);
-          } else {
-            alert(
-              `얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`
-            );
-          }
+          setPreviewResult(result); // 미리보기에 저장
         }
+
+        // 5초 후 미리보기 자동 숨김
+        setTimeout(() => {
+          setShowPreview(false);
+        }, 5000);
       }, 'image/png');
     } catch (error) {
       console.error('❌ 스크린샷 캡처 실패:', error);
@@ -787,6 +862,12 @@ export default function ScreenshotTime() {
       });
 
       console.log('✅ 화면 스트림 획득 성공');
+
+      // 화면 선택 후 딜레이 (옵션 활성화된 경우)
+      if (captureDelayEnabled) {
+        console.log('⏳ 1초 대기 중... (화면 전환 시간)');
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
 
       const video = document.createElement('video');
       video.srcObject = stream;
@@ -864,27 +945,25 @@ export default function ScreenshotTime() {
 
         setIsCapturing(false);
 
+        // 미리보기 이미지 URL 생성
+        const previewUrl = URL.createObjectURL(blob);
+        setPreviewImageUrl(previewUrl);
+        setShowPreview(true);
+        setPreviewResult(null); // 초기화
+
         // 얼굴 인식이 활성화된 경우 분석 실행
         if (faceDetectionEnabled) {
           setIsAnalyzing(true);
           console.log('🔍 얼굴 분석 시작...');
           const result = await analyzeFaces(canvas);
           setIsAnalyzing(false);
-
-          if (result.faceCount === -1) {
-            // 스킵된 경우
-            alert('✅ ' + result.warnings[0]);
-          } else if (result.warnings.length > 0) {
-            const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${
-              result.faceCount
-            }개\n\n${result.warnings.join('\n')}`;
-            alert(warningMsg);
-          } else {
-            alert(
-              `얼굴 인식 결과:\n✅ ${result.faceCount}개의 얼굴이 정상적으로 감지되었습니다.`
-            );
-          }
+          setPreviewResult(result); // 미리보기에 저장
         }
+
+        // 5초 후 미리보기 자동 숨김
+        setTimeout(() => {
+          setShowPreview(false);
+        }, 5000);
       }, 'image/png');
     } catch (error) {
       console.error('❌ 스크린샷 재촬영 실패:', error);
@@ -1003,8 +1082,10 @@ export default function ScreenshotTime() {
   );
 
   return (
-    <div className={`min-h-screen ${colors.bg} transition-colors duration-300`}>
-      <div className='max-w-7xl mx-auto py-6 flex flex-col min-h-[calc(100vh-8rem)]'>
+    <div
+      className={`min-h-screen ${colors.bg} transition-colors duration-300 w-full`}
+    >
+      <div className='max-w-7xl w-full mx-auto py-6 flex flex-col min-h-[calc(100vh-8rem)]'>
         <div className='mb-6 flex justify-between items-center'>
           <Link
             to='/'
@@ -1022,13 +1103,57 @@ export default function ScreenshotTime() {
               <div className='flex justify-between items-center mb-6'>
                 <div>
                   <h1 className={`text-3xl font-bold ${colors.text}`}>
-                    스크린샷 타임 📸
+                    <span className='inline-flex items-center gap-2'>
+                      <LCamera className='w-7 h-7' /> 스크린샷 타임
+                    </span>
                   </h1>
                   <p className={`${colors.textSecondary} mt-2`}>
                     설정된 시간에 카운트다운을 시작합니다
                   </p>
                 </div>
-                <div className='text-center'>
+                <div className='text-right relative'>
+                  {/* 상단: 알림음 선택 (벨 아이콘 + 현재 선택) */}
+                  <div className='flex items-center justify-end gap-2 mb-2'>
+                    <button
+                      type='button'
+                      onClick={() => setShowSoundMenu((v) => !v)}
+                      className={`inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md border ${colors.border} ${colors.card} ${colors.text} transition-colors hover:brightness-95`}
+                      aria-haspopup='menu'
+                      aria-expanded={showSoundMenu}
+                    >
+                      <LBell className='w-5 h-5' />
+                      <span className='text-sm font-medium'>
+                        {SOUNDS[soundType].name}
+                      </span>
+                    </button>
+                  </div>
+                  {/* 드롭다운 */}
+                  {showSoundMenu && (
+                    <div
+                      className={`absolute right-0 mt-1 w-60 ${colors.card} border ${colors.border} rounded-md shadow-lg z-50`}
+                    >
+                      <ul className='py-1 max-h-64 overflow-auto'>
+                        {(Object.keys(SOUNDS) as SoundType[]).map((key) => (
+                          <li key={key}>
+                            <button
+                              type='button'
+                              onClick={() => {
+                                setSoundType(key);
+                                playSound(key);
+                                setShowSoundMenu(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between ${colors.text} transition-colors hover:brightness-95`}
+                            >
+                              <span>{SOUNDS[key].name}</span>
+                              {key === soundType && (
+                                <span className={`${colors.link}`}>선택됨</span>
+                              )}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <div className={`text-3xl font-bold ${colors.link} mb-1`}>
                     {currentTime.toLocaleTimeString('ko-KR', {
                       hour: '2-digit',
@@ -1070,20 +1195,38 @@ export default function ScreenshotTime() {
                       : `${colors.primary} ${colors.primaryHover}`
                   }`}
                 >
-                  {isActive
-                    ? '📸 타이머 활성화됨 (클릭하여 중지)'
-                    : '▶️ 타이머 시작'}
+                  <span className='inline-flex items-center justify-center gap-2'>
+                    {isActive ? (
+                      <>
+                        <LCamera className='w-5 h-5' /> 타이머 활성화됨 (중지)
+                      </>
+                    ) : (
+                      <>
+                        <LPlay className='w-5 h-5' /> 타이머 시작
+                      </>
+                    )}
+                  </span>
                 </button>
                 <button
                   onClick={captureScreenshot}
                   disabled={isCapturing || isAnalyzing}
                   className={`px-6 py-4 ${colors.secondary} ${colors.secondaryHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {isCapturing
-                    ? '📸 캡처 중...'
-                    : isAnalyzing
-                    ? '🔍 분석 중...'
-                    : '📸 스크린샷'}
+                  <span className='inline-flex items-center gap-2'>
+                    {isCapturing ? (
+                      <>
+                        <LCamera className='w-5 h-5' /> 캡처 중...
+                      </>
+                    ) : isAnalyzing ? (
+                      <>
+                        <LSearch className='w-5 h-5' /> 분석 중...
+                      </>
+                    ) : (
+                      <>
+                        <LCamera className='w-5 h-5' /> 스크린샷
+                      </>
+                    )}
+                  </span>
                 </button>
                 <button
                   onClick={retakeScreenshot}
@@ -1092,11 +1235,21 @@ export default function ScreenshotTime() {
                   }
                   className={`px-6 py-4 ${colors.accent} ${colors.accentHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {isCapturing
-                    ? '📸 캡처 중...'
-                    : isAnalyzing
-                    ? '🔍 분석 중...'
-                    : '🔄 재촬영'}
+                  <span className='inline-flex items-center gap-2'>
+                    {isCapturing ? (
+                      <>
+                        <LCamera className='w-5 h-5' /> 캡처 중...
+                      </>
+                    ) : isAnalyzing ? (
+                      <>
+                        <LSearch className='w-5 h-5' /> 분석 중...
+                      </>
+                    ) : (
+                      <>
+                        <LRefreshCw className='w-5 h-5' /> 재촬영
+                      </>
+                    )}
+                  </span>
                 </button>
                 <button
                   onClick={testCountdown}
@@ -1108,64 +1261,125 @@ export default function ScreenshotTime() {
 
               <div className='mb-6'>
                 <div className='bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3'>
-                  <div className='flex items-center justify-between'>
-                    <div>
-                      <p className='text-sm font-medium text-gray-700 mb-1'>
-                        저장 폴더
-                      </p>
-                      <p className='text-sm text-gray-600'>📁 {savePath}</p>
-                    </div>
-                    <button
-                      onClick={selectSaveDirectory}
-                      className='px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium'
-                    >
-                      폴더 선택
-                    </button>
-                  </div>
-                  <p className='text-xs text-gray-500 mt-2'>
-                    ※ Chrome/Edge에서만 폴더 선택 가능. 다른 브라우저는 다운로드
-                    폴더에 자동 저장됩니다.
-                  </p>
-                </div>
-
-                <div className='bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3'>
-                  <div className='flex items-center justify-between mb-3'>
-                    <label className='flex items-center cursor-pointer'>
-                      <input
-                        type='checkbox'
-                        checked={usePrefixEnabled}
-                        onChange={(e) => setUsePrefixEnabled(e.target.checked)}
-                        className='w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500'
-                      />
-                      <span className='ml-2 text-sm font-medium text-gray-700'>
-                        파일명 프리픽스 사용
-                      </span>
-                    </label>
-                  </div>
-                  {usePrefixEnabled && (
-                    <div>
-                      <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        프리픽스
-                      </label>
-                      <input
-                        type='text'
-                        value={filenamePrefix}
-                        onChange={(e) => setFilenamePrefix(e.target.value)}
-                        placeholder='예: lecture, class'
-                        className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
-                      />
+                  <div className='flex flex-col md:flex-row md:items-stretch md:justify-between gap-4'>
+                    {/* 좌측: 저장 폴더 */}
+                    <div className='flex-1'>
+                      <div className='flex items-center justify-between'>
+                        <div>
+                          <p className='text-sm font-medium text-gray-700 mb-1'>
+                            저장 폴더
+                          </p>
+                          <p className='text-sm text-gray-600 inline-flex items-center gap-2'>
+                            <LFolder className='w-4 h-4' /> {savePath}
+                          </p>
+                        </div>
+                        <button
+                          onClick={selectSaveDirectory}
+                          className='px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium'
+                        >
+                          폴더 선택
+                        </button>
+                      </div>
                       <p className='text-xs text-gray-500 mt-2'>
-                        {filenamePrefix
-                          ? `파일명 예시: ${filenamePrefix}_25-11-14-09-00.png`
-                          : '프리픽스를 입력하세요'}
+                        ※ Chrome/Edge에서만 폴더 선택 가능. 다른 브라우저는
+                        다운로드 폴더에 자동 저장됩니다.
                       </p>
                     </div>
-                  )}
+
+                    {/* 중앙 구분선 (컨테이너 높이에 맞춤) */}
+                    <div className='hidden md:block self-stretch w-px bg-gray-200 mx-2' />
+
+                    {/* 우측: 파일명 프리픽스 토글 + 내용 */}
+                    <div className='flex-1'>
+                      <div className='flex items-center justify-between mb-3'>
+                        <div className='text-sm font-medium text-gray-700 relative group inline-flex items-center gap-1'>
+                          <span>파일명 프리픽스 사용</span>
+                          <span
+                            className='inline-flex items-center justify-center w-4 h-4 text-gray-400 hover:text-gray-500 transition-colors'
+                            aria-label='파일명 프리픽스 설명'
+                          >
+                            <LHelp className='w-3.5 h-3.5' />
+                          </span>
+                          <div className='absolute top-full left-0 mt-2 w-64 p-2 text-xs bg-black text-white rounded shadow-lg z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                            파일 저장 시 파일명 앞에 지정한 텍스트를 붙입니다.
+                            예) lecture_25-11-14-09-00.png
+                          </div>
+                        </div>
+                        <button
+                          type='button'
+                          onClick={() => setUsePrefixEnabled((v) => !v)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            usePrefixEnabled ? 'bg-indigo-600' : 'bg-gray-300'
+                          }`}
+                          aria-pressed={usePrefixEnabled}
+                          aria-label='파일명 프리픽스 토글'
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                              usePrefixEnabled
+                                ? 'translate-x-5'
+                                : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      {usePrefixEnabled && (
+                        <div>
+                          <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            프리픽스
+                          </label>
+                          <input
+                            type='text'
+                            value={filenamePrefix}
+                            onChange={(e) => setFilenamePrefix(e.target.value)}
+                            placeholder='예: lecture, class'
+                            className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                          />
+                          <p className='text-xs text-gray-500 mt-2'>
+                            {filenamePrefix
+                              ? `파일명 예시: ${filenamePrefix}_25-11-14-09-00.png`
+                              : '프리픽스를 입력하세요'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div
                   className={`${colors.card} ${colors.border} border rounded-lg p-4 mb-3`}
                 >
+                  <label className='flex items-center cursor-pointer mb-3'>
+                    <input
+                      type='checkbox'
+                      checked={captureDelayEnabled}
+                      onChange={(e) => setCaptureDelayEnabled(e.target.checked)}
+                      className='w-4 h-4 border-gray-300 rounded focus:ring-2'
+                    />
+                    <span className={`ml-2 text-sm font-medium ${colors.text}`}>
+                      <span className='inline-flex items-center gap-2 relative group'>
+                        <LClock className='w-4 h-4' /> 화면 선택 후 1초 대기
+                        (모니터 1대용)
+                        <span
+                          className='inline-flex items-center justify-center w-5 h-5 text-gray-400 hover:text-gray-500 transition-colors'
+                          aria-label='화면 선택 후 대기 설명'
+                        >
+                          <LHelp className='w-3.5 h-3.5' />
+                        </span>
+                        <div className='absolute top-full left-0 mt-2 w-72 p-2 text-xs bg-black text-white rounded shadow-lg z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                          화면 선택 창에서 원하는 화면을 고른 뒤 1초 대기 후
+                          캡처합니다. 단일 모니터 환경에서 줌 등 앱 전환 시간을
+                          확보하기 위한 옵션입니다.
+                        </div>
+                      </span>
+                    </span>
+                  </label>
+                  {/* 설명은 툴팁으로 이동 */}
+
+                  <div className='mb-3'>
+                    {/* 알림음 선택은 상단 우측 드롭다운으로 이동 */}
+                  </div>
+
                   <label className='flex items-center cursor-pointer'>
                     <input
                       type='checkbox'
@@ -1176,16 +1390,25 @@ export default function ScreenshotTime() {
                       className='w-4 h-4 border-gray-300 rounded focus:ring-2'
                     />
                     <span className={`ml-2 text-sm font-medium ${colors.text}`}>
-                      🤖 얼굴 인식 활성화
+                      <span className='inline-flex items-center gap-2 relative group'>
+                        <LCpu className='w-4 h-4' /> 얼굴 인식 활성화
+                        <span
+                          className='inline-flex items-center justify-center w-5 h-5 text-gray-400 hover:text-gray-500 transition-colors'
+                          aria-label='얼굴 인식 기능 설명'
+                        >
+                          <LHelp className='w-3.5 h-3.5' />
+                        </span>
+                        <div className='absolute top-full left-0 mt-2 w-80 p-2 text-xs bg-black text-white rounded shadow-lg z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                          스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를
+                          알려드립니다. SSD MobileNet 모델을 사용하여 높은
+                          정확도로 얼굴을 감지합니다. "운영진/운영/KDT/오르미"
+                          텍스트가 있는 화면은 자동으로 건너뜁니다. 얼굴이 너무
+                          작거나 화면 가장자리에서 잘리는 경우 경고합니다.
+                        </div>
+                      </span>
                     </span>
                   </label>
-                  <p className={`text-xs ${colors.textSecondary} mt-2 ml-6`}>
-                    스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를
-                    알려드립니다. SSD MobileNet 모델을 사용하여 높은 정확도로
-                    얼굴을 감지합니다. "운영진/운영/KDT/오르미" 텍스트가 있는
-                    화면은 자동으로 건너뜁니다. 얼굴이 너무 작거나 화면
-                    가장자리에서 잘리는 경우 경고합니다.
-                  </p>
+                  {/* 설명은 툴팁으로 이동 */}
 
                   <label className='flex items-center cursor-pointer mt-3'>
                     <input
@@ -1196,21 +1419,32 @@ export default function ScreenshotTime() {
                       className='w-4 h-4 border-gray-300 rounded focus:ring-2 disabled:opacity-50'
                     />
                     <span className={`ml-2 text-sm font-medium ${colors.text}`}>
-                      📝 이름 인식 (OCR)
+                      <span className='inline-flex items-center gap-2 relative group'>
+                        <LFileText className='w-4 h-4' /> 이름 인식 (OCR)
+                        <span
+                          className='inline-flex items-center justify-center w-5 h-5 text-gray-400 hover:text-gray-500 transition-colors'
+                          aria-label='이름 인식(OCR) 설명'
+                        >
+                          <LHelp className='w-3.5 h-3.5' />
+                        </span>
+                        <div className='absolute top-full left-0 mt-2 w-80 p-2 text-xs bg-black text-white rounded shadow-lg z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                          OCR로 화면에서 이름을 감지하여 경고 메시지에
+                          표시합니다. 분석 시간이 10-15초 추가될 수 있습니다.
+                          비활성화하면 "얼굴 1", "얼굴 2"로 표시됩니다.
+                        </div>
+                      </span>
                     </span>
                   </label>
-                  <p className={`text-xs ${colors.textSecondary} mt-2 ml-6`}>
-                    OCR로 화면에서 이름을 감지하여 경고 메시지에 표시합니다.
-                    분석 시간이 10-15초 추가될 수 있습니다. 비활성화하면 "얼굴
-                    1", "얼굴 2"로 표시됩니다.
-                  </p>
+                  {/* 설명은 툴팁으로 이동 */}
                 </div>
 
                 <div
                   className={`${colors.card} ${colors.border} border rounded-lg p-4 mb-3`}
                 >
                   <h3 className={`font-bold ${colors.text} mb-3`}>
-                    🧪 얼굴 인식 테스트
+                    <span className='inline-flex items-center gap-2'>
+                      <LFlask className='w-5 h-5' /> 얼굴 인식 테스트
+                    </span>
                   </h3>
                   <p className={`text-xs ${colors.textSecondary} mb-3`}>
                     이미 촬영한 줌 갤러리 화면을 업로드하여 얼굴 인식 정확도를
@@ -1228,7 +1462,17 @@ export default function ScreenshotTime() {
                       disabled={!testImage || isTesting}
                       className={`px-4 py-2 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      {isTesting ? '🔍 분석 중...' : '🧪 테스트 실행'}
+                      <span className='inline-flex items-center gap-2'>
+                        {isTesting ? (
+                          <>
+                            <LSearch className='w-4 h-4' /> 분석 중...
+                          </>
+                        ) : (
+                          <>
+                            <LFlask className='w-4 h-4' /> 테스트 실행
+                          </>
+                        )}
+                      </span>
                     </button>
                   </div>
 
@@ -1237,12 +1481,17 @@ export default function ScreenshotTime() {
                       className={`mt-4 p-4 ${colors.card} rounded-lg ${colors.border} border-2`}
                     >
                       <h4 className={`font-bold ${colors.text} mb-3 text-lg`}>
-                        📊 테스트 결과
+                        <span className='inline-flex items-center gap-2'>
+                          <LBarChart className='w-5 h-5' /> 테스트 결과
+                        </span>
                       </h4>
                       <div className='text-sm space-y-2'>
                         {testResult.faceCount === -1 ? (
                           <p className={`font-medium ${colors.link} text-base`}>
-                            ✅ {testResult.warnings[0]}
+                            <span className='inline-flex items-center gap-2'>
+                              <LCheck className='w-5 h-5' />{' '}
+                              {testResult.warnings[0]}
+                            </span>
                           </p>
                         ) : (
                           <>
@@ -1259,7 +1508,9 @@ export default function ScreenshotTime() {
                             {testResult.warnings.length > 0 && (
                               <div className='mt-3'>
                                 <p className='font-medium text-orange-600 mb-2 text-base'>
-                                  ⚠️ 경고:
+                                  <span className='inline-flex items-center gap-2'>
+                                    <LAlert className='w-5 h-5' /> 경고:
+                                  </span>
                                 </p>
                                 <ul
                                   className={`list-disc list-inside ${colors.textSecondary} space-y-1 ml-2`}
@@ -1275,7 +1526,10 @@ export default function ScreenshotTime() {
                             {testResult.warnings.length === 0 &&
                               testResult.faceCount > 0 && (
                                 <p className='text-green-600 font-medium mt-3 text-base'>
-                                  ✅ 모든 얼굴이 정상적으로 감지되었습니다!
+                                  <span className='inline-flex items-center gap-2'>
+                                    <LCheck className='w-5 h-5' /> 모든 얼굴이
+                                    정상적으로 감지되었습니다!
+                                  </span>
                                 </p>
                               )}
                           </>
@@ -1357,8 +1611,13 @@ export default function ScreenshotTime() {
             </div>
           </div>
 
-          <div className='bg-purple-50 rounded-lg p-4'>
-            <h3 className='font-bold text-purple-900 mb-2'>💡 사용 방법</h3>
+          <div className='bg-purple-50 rounded-lg p-4 mt-12'>
+            1~2초씩 늦
+            <h3 className='font-bold text-purple-900 mb-2'>
+              <span className='inline-flex items-center gap-2'>
+                <LInfo className='w-5 h-5' /> 사용 방법
+              </span>
+            </h3>
             <ul className='text-sm text-purple-800 space-y-1'>
               <li>
                 • 타이머 시작 버튼을 누르면 설정된 시간에 자동으로 60초
@@ -1400,10 +1659,11 @@ export default function ScreenshotTime() {
               <li>• 같은 시간의 카운트다운은 하루에 한 번만 실행됩니다</li>
               <li>• 자정이 지나면 모든 트리거 상태가 초기화됩니다</li>
             </ul>
-
             <div className='mt-4 pt-4 border-t border-purple-200'>
               <h4 className='font-bold text-purple-900 mb-2'>
-                🎯 줌 갤러리 화면 촬영 팁
+                <span className='inline-flex items-center gap-2'>
+                  <LTarget className='w-5 h-5' /> 줌 갤러리 화면 촬영 팁
+                </span>
               </h4>
               <ul className='text-sm text-purple-800 space-y-1'>
                 <li>
@@ -1427,6 +1687,173 @@ export default function ScreenshotTime() {
           </div>
         </div>
       </div>
+
+      {/* 미리보기 (우하단) */}
+      {showPreview && previewImageUrl && (
+        <div className='fixed bottom-4 right-4 z-40 bg-white rounded-lg shadow-2xl border-4 border-indigo-500 overflow-hidden'>
+          <div className='relative'>
+            {/* 미리보기 이미지 */}
+            <img
+              src={previewImageUrl}
+              alt='Screenshot preview'
+              className='w-64 h-48 object-contain cursor-pointer'
+              onClick={() => setShowModal(true)}
+            />
+
+            {/* 분석 중 오버레이 */}
+            {isAnalyzing && (
+              <div className='absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center'>
+                <div className='text-white text-sm font-medium'>
+                  <span className='inline-flex items-center gap-2'>
+                    <LSearch className='w-4 h-4' /> 분석 중...
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* 닫기 버튼 */}
+            <button
+              onClick={() => setShowPreview(false)}
+              className='absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors'
+            >
+              <LX className='w-4 h-4' />
+            </button>
+
+            {/* 분석 결과 간략 표시 */}
+            {!isAnalyzing && previewResult && (
+              <div className='absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-2 text-xs'>
+                {previewResult.faceCount === -1 ? (
+                  <span className='inline-flex items-center gap-1'>
+                    <LCheck className='w-4 h-4' /> 스킵됨
+                  </span>
+                ) : (
+                  <span className='inline-flex items-center gap-1'>
+                    <LUser className='w-4 h-4' /> {previewResult.faceCount}명
+                    인식
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 클릭하여 확대 안내 */}
+          <div className='bg-indigo-50 px-3 py-1 text-xs text-indigo-700 text-center'>
+            클릭하여 확대
+          </div>
+        </div>
+      )}
+
+      {/* 확대 모달 */}
+      {showModal && previewImageUrl && (
+        <div
+          className='fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4'
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className={`${colors.card} rounded-lg shadow-2xl max-w-6xl max-h-[90vh] overflow-auto`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div
+              className={`flex justify-between items-center p-4 border-b ${colors.border}`}
+            >
+              <h3 className={`text-xl font-bold ${colors.text}`}>
+                <span className='inline-flex items-center gap-2'>
+                  <LCamera className='w-5 h-5' /> 스크린샷 미리보기
+                </span>
+              </h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className='text-gray-500 hover:text-gray-700 text-2xl font-bold'
+              >
+                <span className='inline-flex'>
+                  <LX className='w-6 h-6' />
+                </span>
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div className='p-4'>
+              <img
+                src={previewImageUrl}
+                alt='Screenshot full view'
+                className='w-full h-auto'
+              />
+
+              {/* 분석 결과 표시 */}
+              {previewResult && (
+                <div
+                  className={`mt-4 p-4 ${colors.card} rounded-lg ${colors.border} border-2`}
+                >
+                  <h4 className={`font-bold ${colors.text} mb-3 text-lg`}>
+                    <span className='inline-flex items-center gap-2'>
+                      <LBarChart className='w-5 h-5' /> 분석 결과
+                    </span>
+                  </h4>
+                  <div className='text-sm space-y-2'>
+                    {previewResult.faceCount === -1 ? (
+                      <p className={`font-medium ${colors.link} text-base`}>
+                        <span className='inline-flex items-center gap-2'>
+                          <LCheck className='w-5 h-5' />{' '}
+                          {previewResult.warnings[0]}
+                        </span>
+                      </p>
+                    ) : (
+                      <>
+                        <p className={`font-medium ${colors.text} text-base`}>
+                          감지된 얼굴:{' '}
+                          <span className={`${colors.link} font-bold text-xl`}>
+                            {previewResult.faceCount}개
+                          </span>
+                        </p>
+                        {previewResult.warnings.length > 0 && (
+                          <div className='mt-3'>
+                            <p className='font-medium text-orange-600 mb-2 text-base'>
+                              <span className='inline-flex items-center gap-2'>
+                                <LAlert className='w-5 h-5' /> 경고:
+                              </span>
+                            </p>
+                            <ul
+                              className={`list-disc list-inside ${colors.textSecondary} space-y-1 ml-2`}
+                            >
+                              {previewResult.warnings.map((warning, idx) => (
+                                <li key={idx} className='text-sm'>
+                                  {warning}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {previewResult.warnings.length === 0 &&
+                          previewResult.faceCount > 0 && (
+                            <p className='text-green-600 font-medium mt-3 text-base'>
+                              <span className='inline-flex items-center gap-2'>
+                                <LCheck className='w-5 h-5' /> 모든 얼굴이
+                                정상적으로 감지되었습니다!
+                              </span>
+                            </p>
+                          )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 모달 푸터 */}
+            <div
+              className={`flex justify-end gap-2 p-4 border-t ${colors.border}`}
+            >
+              <button
+                onClick={() => setShowModal(false)}
+                className={`px-4 py-2 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium`}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

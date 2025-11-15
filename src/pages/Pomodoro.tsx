@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { playSound, SOUNDS, type SoundType } from '../utils/sounds';
+import { BellRing as LBellRing, Play as LPlay } from 'lucide-react';
 
 interface TimeSlot {
   id: number;
@@ -50,32 +52,60 @@ export default function Pomodoro() {
   const [editTime, setEditTime] = useState('');
   const [editMessage, setEditMessage] = useState('');
   const [timeOffset, setTimeOffset] = useState(0);
+  const [soundType, setSoundType] = useState<SoundType>(() => {
+    const saved = localStorage.getItem('pomodoro-sound-type');
+    return (saved as SoundType) || 'ding';
+  });
+  const [showSoundMenu, setShowSoundMenu] = useState(false);
 
-  // 서버 시간 동기화
+  // 서버 시간 동기화 (지연 보정 + 재동기화 훅)
   useEffect(() => {
-    const syncTime = async () => {
+    const syncOnce = async (): Promise<number | null> => {
       try {
-        const response = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Seoul');
-        if (!response.ok) throw new Error('Time sync failed');
-
-        const data = await response.json();
-        const serverTime = new Date(data.dateTime).getTime();
-        const clientTime = new Date().getTime();
-        const offset = serverTime - clientTime;
-
-        setTimeOffset(offset);
-        console.log('⏰ 시간 동기화 완료:', {
-          serverTime: new Date(serverTime).toISOString(),
-          clientTime: new Date(clientTime).toISOString(),
-          offset: `${offset}ms`
+        const t0 = Date.now();
+        const res = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Seoul', {
+          cache: 'no-store',
         });
+        const t1 = Date.now();
+        if (!res.ok) throw new Error('Time sync failed');
+        const data = await res.json();
+        const serverMs = new Date(data.dateTime).getTime();
+        const rtt = t1 - t0;
+        const clientMid = t0 + rtt / 2;
+        return serverMs - clientMid;
       } catch {
+        return null;
+      }
+    };
+    const syncTime = async () => {
+      const samples: number[] = [];
+      for (let i = 0; i < 5; i++) {
+         
+        await new Promise((r) => setTimeout(r, 30 + Math.random() * 40));
+         
+        const off = await syncOnce();
+        if (typeof off === 'number') samples.push(off);
+      }
+      if (samples.length > 0) {
+        const sorted = samples.slice().sort((a, b) => a - b);
+        const median = sorted[Math.floor(sorted.length / 2)];
+        setTimeOffset(median);
+        console.log('⏰ 시간 동기화 완료(지연 보정):', { samples, chosenOffset: `${median}ms` });
+      } else {
         console.warn('⚠️ 서버 시간 동기화 실패, 클라이언트 시간 사용');
         setTimeOffset(0);
       }
     };
-
     syncTime();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') syncTime();
+    };
+    window.addEventListener('focus', syncTime);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', syncTime);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   // 보정된 현재 시간
@@ -83,13 +113,19 @@ export default function Pomodoro() {
     return new Date(new Date().getTime() + timeOffset);
   }, [timeOffset]);
 
-  // 현재 시간 업데이트
+  // 현재 시간 업데이트 (OS 시계와 초 경계 정렬)
   useEffect(() => {
-    const interval = setInterval(() => {
+    let timer: number | undefined;
+    const tick = () => {
       setCurrentTime(getAccurateTime());
-    }, 1000);
-
-    return () => clearInterval(interval);
+      const now = Date.now();
+      const delay = 1000 - (now % 1000) + 1;
+      timer = window.setTimeout(tick, delay);
+    };
+    tick();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [getAccurateTime]);
 
   // 시간대 저장
@@ -102,6 +138,11 @@ export default function Pomodoro() {
     localStorage.setItem('lecture-notifications-active', String(isActive));
   }, [isActive]);
 
+  // 알림음 저장
+  useEffect(() => {
+    localStorage.setItem('pomodoro-sound-type', soundType);
+  }, [soundType]);
+
   // 자정에 notified 상태 및 알림 활성화 초기화
   useEffect(() => {
     const checkMidnight = setInterval(() => {
@@ -110,8 +151,8 @@ export default function Pomodoro() {
         console.log('🌙 자정 도달 - 알림 상태 초기화');
 
         // notified 상태 초기화
-        setTimeSlots(slots =>
-          slots.map(slot => ({ ...slot, notified: false }))
+        setTimeSlots((slots) =>
+          slots.map((slot) => ({ ...slot, notified: false }))
         );
 
         // 알림 활성화 상태 초기화
@@ -126,67 +167,67 @@ export default function Pomodoro() {
   }, [getAccurateTime]);
 
   // 알림 발송 함수
-  const sendNotification = useCallback((message: string) => {
-    console.log('🔔 알림 시도:', {
-      permission: notificationPermission,
-      hasNotificationAPI: typeof Notification !== 'undefined',
-      message,
-      timestamp: new Date().toISOString(),
-    });
+  const sendNotification = useCallback(
+    (message: string) => {
+      console.log('🔔 알림 시도:', {
+        permission: notificationPermission,
+        hasNotificationAPI: typeof Notification !== 'undefined',
+        message,
+        timestamp: new Date().toISOString(),
+      });
 
-    // 브라우저 시스템 알림
-    if (notificationPermission === 'granted') {
-      try {
-        console.log('📢 시스템 알림 생성 시작...');
-        const notification = new Notification('수업 알림 🔔', {
-          body: message,
-          tag: 'lecture-notification',
-        });
+      // 브라우저 시스템 알림
+      if (notificationPermission === 'granted') {
+        try {
+          console.log('📢 시스템 알림 생성 시작...');
+          const notification = new Notification('수업 알림 🔔', {
+            body: message,
+            tag: 'lecture-notification',
+          });
 
-        notification.onshow = () => {
-          console.log('✅ 시스템 알림이 화면에 표시됨');
-        };
+          notification.onshow = () => {
+            console.log('✅ 시스템 알림이 화면에 표시됨');
+          };
 
-        notification.onclick = () => {
-          console.log('✅ 알림 클릭됨');
-          window.focus();
-          notification.close();
-        };
+          notification.onclick = () => {
+            console.log('✅ 알림 클릭됨');
+            window.focus();
+            notification.close();
+          };
 
-        notification.onerror = (error) => {
-          console.error('❌ 알림 표시 중 에러:', error);
-        };
+          notification.onerror = (error) => {
+            console.error('❌ 알림 표시 중 에러:', error);
+          };
 
-        console.log('✅ 시스템 알림 객체 생성 성공', notification);
-      } catch (error) {
-        console.error('❌ 시스템 알림 생성 실패:', error);
+          console.log('✅ 시스템 알림 객체 생성 성공', notification);
+        } catch (error) {
+          console.error('❌ 시스템 알림 생성 실패:', error);
+        }
+      } else {
+        console.warn('⚠️ 알림 권한이 없습니다:', notificationPermission);
       }
-    } else {
-      console.warn('⚠️ 알림 권한이 없습니다:', notificationPermission);
-    }
 
-    // 소리 재생
-    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVanm7q1aFQ1Ln+Pxv3IeBi6Cz/PWhzYHImzB7+WaTg4NUqnl762cFAxKnuPvwnAhBSx/zvPYiDYHI3DB7uOaSQ4NUqbl761dFQ1Ln+PvwnAhBSyAz/PXhzUHIm/A7uKZSg0PVKjl7axdFQxLn+PvwnAhBSx/zvPYhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnEhBSyBz/PWhzUHIm/A7uSZSw4PU6fk7axcFQxLn+PwwnEhBiyAzvPWhzYHI3DB7uOZSQ4PVKjl7axdFQxLnuPvwnAhBSyAzvPXiDUHIm/A7uOaSw4PU6fk7axdFQxLn+PvwnEhBSyAzvPWhzYHI2/A7uKZSw4PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHInDB7uOZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHInDB7uOZSg0PVKfl7qxdFQtLnt/vwm8hBSx/zu/YhzUHI3DB7uOZSQ0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxLnuPwwm8hBSx/zvPXhzUHI3DB7eKZSg0PVKfl7qxcFQxL');
-    audio.play().catch((error) => {
-      console.log('⚠️ 오디오 재생 실패 (사용자 상호작용 필요):', error);
-    });
-  }, [notificationPermission]);
+      // 소리 재생
+      playSound(soundType);
+    },
+    [notificationPermission, soundType]
+  );
 
   // 알림 체크
   useEffect(() => {
     if (!isActive) return;
 
     const now = getAccurateTime();
-    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(
+      now.getMinutes()
+    ).padStart(2, '0')}`;
 
     timeSlots.forEach((slot) => {
       if (slot.enabled && !slot.notified && slot.time === currentTimeStr) {
         sendNotification(slot.message);
         // notified 상태 업데이트
         setTimeSlots((prev) =>
-          prev.map((s) =>
-            s.id === slot.id ? { ...s, notified: true } : s
-          )
+          prev.map((s) => (s.id === slot.id ? { ...s, notified: true } : s))
         );
       }
     });
@@ -202,7 +243,9 @@ export default function Pomodoro() {
     setNotificationPermission(permission);
 
     if (permission === 'granted') {
-      sendNotification('알림이 활성화되었습니다! 설정된 시간에 알림을 받으실 수 있습니다.');
+      sendNotification(
+        '알림이 활성화되었습니다! 설정된 시간에 알림을 받으실 수 있습니다.'
+      );
     }
 
     return permission;
@@ -296,10 +339,12 @@ export default function Pomodoro() {
     }
   };
 
-  const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
+  const sortedSlots = [...timeSlots].sort((a, b) =>
+    a.time.localeCompare(b.time)
+  );
 
   return (
-    <div className='max-w-full'>
+    <div className='max-w-full w-full'>
       <div className='mb-6'>
         <Link
           to='/'
@@ -309,17 +354,63 @@ export default function Pomodoro() {
         </Link>
       </div>
 
-      <div className={`${colors.card} rounded-lg shadow-md p-6 mb-6 ${colors.border} border transition-colors duration-300`}>
+      <div
+        className={`${colors.card} rounded-lg shadow-md p-6 mb-6 ${colors.border} border transition-colors duration-300`}
+      >
         <div className='flex justify-between items-center mb-6'>
           <div>
             <h1 className={`text-3xl font-bold ${colors.text}`}>
-              수업 시간표 알림 🔔
+              <span className='inline-flex items-center gap-2'>
+                <LBellRing className='w-7 h-7' /> 수업 시간표 알림
+              </span>
             </h1>
             <p className={`${colors.textSecondary} mt-2`}>
               설정된 시간에 자동으로 알림을 받으세요
             </p>
           </div>
-          <div className='text-center'>
+          <div className='text-right relative'>
+            {/* 상단: 알림음 선택 (벨 아이콘 + 현재 선택) */}
+            <div className='flex items-center justify-end gap-2 mb-2'>
+              <button
+                type='button'
+                onClick={() => setShowSoundMenu((v) => !v)}
+                className={`inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md border ${colors.border} ${colors.card} ${colors.text} transition-colors hover:brightness-95`}
+                aria-haspopup='menu'
+                aria-expanded={showSoundMenu}
+              >
+                <LBellRing className='w-5 h-5' />
+                <span className='text-sm font-medium'>
+                  {SOUNDS[soundType].name}
+                </span>
+              </button>
+            </div>
+            {/* 드롭다운 */}
+            {showSoundMenu && (
+              <div
+                className={`absolute right-0 mt-1 w-60 ${colors.card} border ${colors.border} rounded-md shadow-lg z-50`}
+              >
+                <ul className='py-1 max-h-64 overflow-auto'>
+                  {(Object.keys(SOUNDS) as SoundType[]).map((key) => (
+                    <li key={key}>
+                      <button
+                        type='button'
+                        onClick={() => {
+                          setSoundType(key);
+                          playSound(key);
+                          setShowSoundMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between ${colors.text} transition-colors hover:brightness-95`}
+                      >
+                        <span>{SOUNDS[key].name}</span>
+                        {key === soundType && (
+                          <span className={`${colors.link}`}>선택됨</span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className={`text-3xl font-bold ${colors.link} mb-1`}>
               {currentTime.toLocaleTimeString('ko-KR', {
                 hour: '2-digit',
@@ -368,7 +459,18 @@ export default function Pomodoro() {
                 : `${colors.primary} ${colors.primaryHover}`
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            {isActive ? '🔔 알림 활성화됨 (클릭하여 중지)' : '▶️ 알림 시작'}
+            <span className='inline-flex items-center justify-center gap-2'>
+              {isActive ? (
+                <>
+                  <LBellRing className='w-5 h-5' /> 알림 활성화됨 (클릭하여
+                  중지)
+                </>
+              ) : (
+                <>
+                  <LPlay className='w-5 h-5' /> 알림 시작
+                </>
+              )}
+            </span>
           </button>
           <button
             onClick={testNotification}
@@ -392,13 +494,17 @@ export default function Pomodoro() {
             기본값으로 초기화
           </button>
         </div>
+
+        {/* 알림음 선택은 상단 우측 드롭다운으로 이동 */}
       </div>
 
       <div className='space-y-3'>
         {sortedSlots.map((slot) => (
           <div
             key={slot.id}
-            className={`${colors.card} rounded-lg shadow-md p-4 transition-all ${
+            className={`${
+              colors.card
+            } rounded-lg shadow-md p-4 transition-all ${
               slot.enabled ? `border-l-4 ${colors.border}` : 'opacity-60'
             } ${slot.notified ? 'bg-green-50' : ''}`}
           >
@@ -406,7 +512,9 @@ export default function Pomodoro() {
               <div className='space-y-3'>
                 <div className='grid grid-cols-2 gap-3'>
                   <div>
-                    <label className={`block text-sm font-medium ${colors.text} mb-1`}>
+                    <label
+                      className={`block text-sm font-medium ${colors.text} mb-1`}
+                    >
                       시간
                     </label>
                     <input
@@ -417,7 +525,9 @@ export default function Pomodoro() {
                     />
                   </div>
                   <div>
-                    <label className={`block text-sm font-medium ${colors.text} mb-1`}>
+                    <label
+                      className={`block text-sm font-medium ${colors.text} mb-1`}
+                    >
                       메시지
                     </label>
                     <input
