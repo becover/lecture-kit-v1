@@ -17,6 +17,25 @@ interface FaceDetectionResult {
   hasCroppedFaces: boolean;
 }
 
+type ThemeType = 'default' | 'dark' | 'minimal' | 'professional';
+
+interface ThemeColors {
+  name: string;
+  bg: string;
+  card: string;
+  text: string;
+  textSecondary: string;
+  primary: string;
+  primaryHover: string;
+  secondary: string;
+  secondaryHover: string;
+  accent: string;
+  accentHover: string;
+  border: string;
+  link: string;
+  linkHover: string;
+}
+
 // FileSystemDirectoryHandle 타입 확장
 interface ExtendedFileSystemDirectoryHandle extends FileSystemDirectoryHandle {
   queryPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
@@ -29,6 +48,73 @@ declare global {
     showDirectoryPicker(options?: { mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
   }
 }
+
+const THEME_PRESETS: Record<ThemeType, ThemeColors> = {
+  default: {
+    name: '기본 테마',
+    bg: 'bg-gray-50',
+    card: 'bg-white',
+    text: 'text-gray-800',
+    textSecondary: 'text-gray-600',
+    primary: 'bg-indigo-600',
+    primaryHover: 'hover:bg-indigo-700',
+    secondary: 'bg-purple-500',
+    secondaryHover: 'hover:bg-purple-600',
+    accent: 'bg-orange-500',
+    accentHover: 'hover:bg-orange-600',
+    border: 'border-gray-200',
+    link: 'text-indigo-600',
+    linkHover: 'hover:text-indigo-800',
+  },
+  dark: {
+    name: '다크 프리미엄',
+    bg: 'bg-gray-900',
+    card: 'bg-gray-800',
+    text: 'text-gray-100',
+    textSecondary: 'text-gray-400',
+    primary: 'bg-amber-600',
+    primaryHover: 'hover:bg-amber-700',
+    secondary: 'bg-yellow-600',
+    secondaryHover: 'hover:bg-yellow-700',
+    accent: 'bg-amber-500',
+    accentHover: 'hover:bg-amber-600',
+    border: 'border-gray-700',
+    link: 'text-amber-500',
+    linkHover: 'hover:text-amber-400',
+  },
+  minimal: {
+    name: '모던 미니멀',
+    bg: 'bg-slate-50',
+    card: 'bg-white',
+    text: 'text-slate-900',
+    textSecondary: 'text-slate-600',
+    primary: 'bg-slate-700',
+    primaryHover: 'hover:bg-slate-800',
+    secondary: 'bg-blue-600',
+    secondaryHover: 'hover:bg-blue-700',
+    accent: 'bg-sky-500',
+    accentHover: 'hover:bg-sky-600',
+    border: 'border-slate-200',
+    link: 'text-slate-700',
+    linkHover: 'hover:text-slate-900',
+  },
+  professional: {
+    name: '프로페셔널',
+    bg: 'bg-slate-100',
+    card: 'bg-white',
+    text: 'text-slate-800',
+    textSecondary: 'text-slate-600',
+    primary: 'bg-teal-600',
+    primaryHover: 'hover:bg-teal-700',
+    secondary: 'bg-emerald-600',
+    secondaryHover: 'hover:bg-emerald-700',
+    accent: 'bg-cyan-500',
+    accentHover: 'hover:bg-cyan-600',
+    border: 'border-slate-300',
+    link: 'text-teal-600',
+    linkHover: 'hover:text-teal-800',
+  },
+};
 
 const DEFAULT_TIME_SLOTS: Omit<TimeSlot, 'id' | 'triggered'>[] = [
   { time: '09:10', enabled: true },
@@ -43,6 +129,11 @@ const DEFAULT_TIME_SLOTS: Omit<TimeSlot, 'id' | 'triggered'>[] = [
 ];
 
 export default function ScreenshotTime() {
+  const [theme, setTheme] = useState<ThemeType>(() => {
+    const saved = localStorage.getItem('screenshot-theme');
+    return (saved as ThemeType) || 'default';
+  });
+
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(() => {
     const saved = localStorage.getItem('screenshot-time-slots');
     if (saved) {
@@ -179,6 +270,10 @@ export default function ScreenshotTime() {
   useEffect(() => {
     localStorage.setItem('screenshot-ocr-enabled', String(ocrEnabled));
   }, [ocrEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('screenshot-theme', theme);
+  }, [theme]);
 
   // 자정에 triggered 상태 초기화
   useEffect(() => {
@@ -913,37 +1008,54 @@ export default function ScreenshotTime() {
   };
 
   const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
+  const colors = THEME_PRESETS[theme];
 
   return (
-    <div className='max-w-4x'>
-      <div className='mb-6'>
-        <Link
-          to='/'
-          className='text-indigo-600 hover:text-indigo-800 font-medium'
-        >
-          ← 대시보드로 돌아가기
-        </Link>
-      </div>
+    <div className={`min-h-screen ${colors.bg} transition-colors duration-300`}>
+      <div className='max-w-4xl mx-auto p-6'>
+        <div className='mb-6 flex justify-between items-center'>
+          <Link
+            to='/'
+            className={`${colors.link} ${colors.linkHover} font-medium transition-colors`}
+          >
+            ← 대시보드로 돌아가기
+          </Link>
 
-      <div className='bg-white rounded-lg shadow-md p-6 mb-6'>
+          <div className='flex items-center gap-2'>
+            <label className={`text-sm font-medium ${colors.text}`}>🎨 테마:</label>
+            <select
+              value={theme}
+              onChange={(e) => setTheme(e.target.value as ThemeType)}
+              className={`px-3 py-2 ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all`}
+            >
+              {(Object.keys(THEME_PRESETS) as ThemeType[]).map((key) => (
+                <option key={key} value={key}>
+                  {THEME_PRESETS[key].name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className={`${colors.card} rounded-lg shadow-md p-6 mb-6 transition-colors duration-300`}>
         <div className='flex justify-between items-center mb-6'>
           <div>
-            <h1 className='text-3xl font-bold text-gray-800'>
+            <h1 className={`text-3xl font-bold ${colors.text}`}>
               스크린샷 타임 📸
             </h1>
-            <p className='text-gray-600 mt-2'>
+            <p className={`${colors.textSecondary} mt-2`}>
               설정된 시간에 카운트다운을 시작합니다
             </p>
           </div>
           <div className='text-center'>
-            <div className='text-3xl font-bold text-indigo-600 mb-1'>
+            <div className={`text-3xl font-bold ${colors.link} mb-1`}>
               {currentTime.toLocaleTimeString('ko-KR', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
               })}
             </div>
-            <div className='text-sm text-gray-500'>
+            <div className={`text-sm ${colors.textSecondary}`}>
               {currentTime.toLocaleDateString('ko-KR', {
                 month: 'long',
                 day: 'numeric',
@@ -971,10 +1083,10 @@ export default function ScreenshotTime() {
         <div className='flex gap-3 mb-6'>
           <button
             onClick={toggleActive}
-            className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg transition-colors ${
+            className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg transition-colors text-white ${
               isActive
-                ? 'bg-red-500 text-white hover:bg-red-600'
-                : 'bg-green-500 text-white hover:bg-green-600'
+                ? 'bg-red-500 hover:bg-red-600'
+                : `${colors.primary} ${colors.primaryHover}`
             }`}
           >
             {isActive ? '📸 타이머 활성화됨 (클릭하여 중지)' : '▶️ 타이머 시작'}
@@ -982,20 +1094,20 @@ export default function ScreenshotTime() {
           <button
             onClick={captureScreenshot}
             disabled={isCapturing || isAnalyzing}
-            className='px-6 py-4 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+            className={`px-6 py-4 ${colors.secondary} ${colors.secondaryHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {isCapturing ? '📸 캡처 중...' : isAnalyzing ? '🔍 분석 중...' : '📸 스크린샷'}
           </button>
           <button
             onClick={retakeScreenshot}
             disabled={isCapturing || isAnalyzing || !lastCanvasRef.current}
-            className='px-6 py-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+            className={`px-6 py-4 ${colors.accent} ${colors.accentHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {isCapturing ? '📸 캡처 중...' : isAnalyzing ? '🔍 분석 중...' : '🔄 재촬영'}
           </button>
           <button
             onClick={testCountdown}
-            className='px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium'
+            className={`px-6 py-4 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium`}
           >
             테스트 (60초)
           </button>
@@ -1055,19 +1167,19 @@ export default function ScreenshotTime() {
             )}
           </div>
 
-          <div className='bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3'>
+          <div className={`${colors.card} ${colors.border} border rounded-lg p-4 mb-3`}>
             <label className='flex items-center cursor-pointer'>
               <input
                 type='checkbox'
                 checked={faceDetectionEnabled}
                 onChange={(e) => setFaceDetectionEnabled(e.target.checked)}
-                className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+                className='w-4 h-4 border-gray-300 rounded focus:ring-2'
               />
-              <span className='ml-2 text-sm font-medium text-gray-700'>
+              <span className={`ml-2 text-sm font-medium ${colors.text}`}>
                 🤖 얼굴 인식 활성화
               </span>
             </label>
-            <p className='text-xs text-gray-500 mt-2 ml-6'>
+            <p className={`text-xs ${colors.textSecondary} mt-2 ml-6`}>
               스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. SSD MobileNet 모델을 사용하여 높은 정확도로 얼굴을 감지합니다. "운영진/운영/KDT/오르미" 텍스트가 있는 화면은 자동으로 건너뜁니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
             </p>
 
@@ -1077,13 +1189,13 @@ export default function ScreenshotTime() {
                 checked={ocrEnabled}
                 onChange={(e) => setOcrEnabled(e.target.checked)}
                 disabled={!faceDetectionEnabled}
-                className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50'
+                className='w-4 h-4 border-gray-300 rounded focus:ring-2 disabled:opacity-50'
               />
-              <span className='ml-2 text-sm font-medium text-gray-700'>
+              <span className={`ml-2 text-sm font-medium ${colors.text}`}>
                 📝 이름 인식 (OCR)
               </span>
             </label>
-            <p className='text-xs text-gray-500 mt-2 ml-6'>
+            <p className={`text-xs ${colors.textSecondary} mt-2 ml-6`}>
               OCR로 화면에서 이름을 감지하여 경고 메시지에 표시합니다. 분석 시간이 10-15초 추가될 수 있습니다. 비활성화하면 "얼굴 1", "얼굴 2"로 표시됩니다.
             </p>
           </div>
@@ -1246,6 +1358,7 @@ export default function ScreenshotTime() {
           </ul>
         </div>
       </div>
+    </div>
     </div>
   );
 }
