@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import * as faceapi from '@vladmandic/face-api';
+import Tesseract from 'tesseract.js';
 
 interface TimeSlot {
   id: number;
@@ -92,12 +93,12 @@ export default function ScreenshotTime() {
         console.log('🤖 얼굴 인식 모델 로딩 중...');
 
         // @vladmandic/face-api 모델 로드 (CDN에서)
-        // TinyFaceDetector: 가볍고 빠른 모델 (SSD MobileNet보다 10배 이상 빠름)
+        // SSD MobileNet: 정확도 높음 (TinyFaceDetector보다 느리지만 더 정확)
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
 
         modelRef.current = true;
-        console.log('✅ 얼굴 인식 모델 로드 완료 (TinyFaceDetector)');
+        console.log('✅ 얼굴 인식 모델 로드 완료 (SSD MobileNet)');
       } catch (error) {
         console.error('❌ 얼굴 인식 모델 로드 실패:', error);
       }
@@ -330,6 +331,32 @@ export default function ScreenshotTime() {
     }
   };
 
+  // 텍스트 감지 (운영진/운영/KDT/오르미 감지)
+  const detectExcludedText = async (canvas: HTMLCanvasElement): Promise<boolean> => {
+    try {
+      console.log('📝 텍스트 감지 중...');
+      const dataUrl = canvas.toDataURL('image/png');
+
+      const { data: { text } } = await Tesseract.recognize(dataUrl, 'kor+eng', {
+        logger: () => {}, // 로그 비활성화
+      });
+
+      const excludedKeywords = ['운영진', '운영', 'KDT', '오르미'];
+      const foundKeywords = excludedKeywords.filter(keyword => text.includes(keyword));
+
+      if (foundKeywords.length > 0) {
+        console.log('✅ 제외 키워드 감지:', foundKeywords.join(', '));
+        return true;
+      }
+
+      console.log('❌ 제외 키워드 없음');
+      return false;
+    } catch (error) {
+      console.error('텍스트 감지 실패:', error);
+      return false; // 실패 시 얼굴 인식 진행
+    }
+  };
+
   // 얼굴 인식 분석
   const analyzeFaces = async (canvas: HTMLCanvasElement): Promise<FaceDetectionResult> => {
     if (!modelRef.current) {
@@ -341,13 +368,24 @@ export default function ScreenshotTime() {
       };
     }
 
+    // 먼저 제외 키워드 체크
+    const shouldSkip = await detectExcludedText(canvas);
+    if (shouldSkip) {
+      return {
+        faceCount: -1, // 특수값: 스킵됨
+        warnings: ['운영진/운영/KDT/오르미 화면이므로 얼굴 인식을 건너뜁니다'],
+        hasSmallFaces: false,
+        hasCroppedFaces: false,
+      };
+    }
+
     try {
-      // TinyFaceDetector로 얼굴 감지 (빠르고 작은 얼굴도 잘 감지)
+      // SSD MobileNet으로 얼굴 감지 (정확도 높음)
       const detections = await faceapi.detectAllFaces(
         canvas,
-        new faceapi.TinyFaceDetectorOptions({
-          inputSize: 416, // 입력 크기 (높을수록 정확하지만 느림, 기본: 416)
-          scoreThreshold: 0.4, // 신뢰도 임계값 (낮을수록 더 많이 감지, 기본: 0.5)
+        new faceapi.SsdMobilenetv1Options({
+          minConfidence: 0.3, // 신뢰도 임계값 낮춤 (기본 0.5)
+          maxResults: 100, // 최대 100개 얼굴까지 감지
         })
       );
 
@@ -551,7 +589,10 @@ export default function ScreenshotTime() {
           setIsAnalyzing(false);
 
           // 결과 알림
-          if (result.warnings.length > 0) {
+          if (result.faceCount === -1) {
+            // 스킵된 경우
+            alert('✅ ' + result.warnings[0]);
+          } else if (result.warnings.length > 0) {
             const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${result.faceCount}개\n\n${result.warnings.join('\n')}`;
             alert(warningMsg);
           } else {
@@ -673,7 +714,10 @@ export default function ScreenshotTime() {
           const result = await analyzeFaces(canvas);
           setIsAnalyzing(false);
 
-          if (result.warnings.length > 0) {
+          if (result.faceCount === -1) {
+            // 스킵된 경우
+            alert('✅ ' + result.warnings[0]);
+          } else if (result.warnings.length > 0) {
             const warningMsg = `얼굴 인식 결과:\n감지된 얼굴: ${result.faceCount}개\n\n${result.warnings.join('\n')}`;
             alert(warningMsg);
           } else {
@@ -749,9 +793,9 @@ export default function ScreenshotTime() {
       // 얼굴에 박스 그리기
       const detections = await faceapi.detectAllFaces(
         canvas,
-        new faceapi.TinyFaceDetectorOptions({
-          inputSize: 416,
-          scoreThreshold: 0.4,
+        new faceapi.SsdMobilenetv1Options({
+          minConfidence: 0.3,
+          maxResults: 100,
         })
       );
 
@@ -944,7 +988,7 @@ export default function ScreenshotTime() {
               </span>
             </label>
             <p className='text-xs text-gray-500 mt-2 ml-6'>
-              스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. TinyFaceDetector 모델을 사용하여 빠르고 정확하게 작은 얼굴도 감지합니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
+              스크린샷 촬영 후 얼굴을 자동으로 감지하여 결과를 알려드립니다. SSD MobileNet 모델을 사용하여 높은 정확도로 얼굴을 감지합니다. "운영진/운영/KDT/오르미" 텍스트가 있는 화면은 자동으로 건너뜁니다. 얼굴이 너무 작거나 화면 가장자리에서 잘리는 경우 경고합니다.
             </p>
           </div>
 
@@ -975,23 +1019,31 @@ export default function ScreenshotTime() {
                   📊 테스트 결과
                 </h4>
                 <div className='text-sm space-y-1'>
-                  <p className='font-medium text-gray-700'>
-                    감지된 얼굴: <span className='text-green-600 font-bold'>{testResult.faceCount}개</span>
-                  </p>
-                  {testResult.warnings.length > 0 && (
-                    <div className='mt-2'>
-                      <p className='font-medium text-orange-700 mb-1'>⚠️ 경고:</p>
-                      <ul className='list-disc list-inside text-gray-600 space-y-1'>
-                        {testResult.warnings.map((warning, idx) => (
-                          <li key={idx}>{warning}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {testResult.warnings.length === 0 && testResult.faceCount > 0 && (
-                    <p className='text-green-600 font-medium mt-2'>
-                      ✅ 모든 얼굴이 정상적으로 감지되었습니다!
+                  {testResult.faceCount === -1 ? (
+                    <p className='font-medium text-blue-600'>
+                      ✅ {testResult.warnings[0]}
                     </p>
+                  ) : (
+                    <>
+                      <p className='font-medium text-gray-700'>
+                        감지된 얼굴: <span className='text-green-600 font-bold'>{testResult.faceCount}개</span>
+                      </p>
+                      {testResult.warnings.length > 0 && (
+                        <div className='mt-2'>
+                          <p className='font-medium text-orange-700 mb-1'>⚠️ 경고:</p>
+                          <ul className='list-disc list-inside text-gray-600 space-y-1'>
+                            {testResult.warnings.map((warning, idx) => (
+                              <li key={idx}>{warning}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {testResult.warnings.length === 0 && testResult.faceCount > 0 && (
+                        <p className='text-green-600 font-medium mt-2'>
+                          ✅ 모든 얼굴이 정상적으로 감지되었습니다!
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
 
