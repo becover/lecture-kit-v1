@@ -1200,9 +1200,9 @@ export default function ScreenshotTime() {
             </p>
           </div>
 
-          <div className='bg-green-50 border border-green-200 rounded-lg p-4 mb-3'>
-            <h3 className='font-bold text-green-900 mb-3'>🧪 얼굴 인식 테스트</h3>
-            <p className='text-xs text-gray-600 mb-3'>
+          <div className={`${colors.card} ${colors.border} border rounded-lg p-4 mb-3`}>
+            <h3 className={`font-bold ${colors.text} mb-3`}>🧪 얼굴 인식 테스트</h3>
+            <p className={`text-xs ${colors.textSecondary} mb-3`}>
               이미 촬영한 줌 갤러리 화면을 업로드하여 얼굴 인식 정확도를 테스트할 수 있습니다.
             </p>
             <div className='flex gap-2 mb-3'>
@@ -1210,44 +1210,44 @@ export default function ScreenshotTime() {
                 type='file'
                 accept='image/*'
                 onChange={handleTestImageUpload}
-                className='flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500'
+                className={`flex-1 px-3 py-2 text-sm ${colors.card} ${colors.text} ${colors.border} border rounded-lg focus:outline-none focus:ring-2 transition-all`}
               />
               <button
                 onClick={testFaceDetection}
                 disabled={!testImage || isTesting}
-                className='px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+                className={`px-4 py-2 ${colors.primary} ${colors.primaryHover} text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {isTesting ? '🔍 분석 중...' : '🧪 테스트 실행'}
               </button>
             </div>
 
             {testResult && (
-              <div className='mt-4 p-3 bg-white rounded-lg border border-green-200'>
-                <h4 className='font-bold text-gray-800 mb-2'>
+              <div className={`mt-4 p-4 ${colors.card} rounded-lg ${colors.border} border-2`}>
+                <h4 className={`font-bold ${colors.text} mb-3 text-lg`}>
                   📊 테스트 결과
                 </h4>
-                <div className='text-sm space-y-1'>
+                <div className='text-sm space-y-2'>
                   {testResult.faceCount === -1 ? (
-                    <p className='font-medium text-blue-600'>
+                    <p className={`font-medium ${colors.link} text-base`}>
                       ✅ {testResult.warnings[0]}
                     </p>
                   ) : (
                     <>
-                      <p className='font-medium text-gray-700'>
-                        감지된 얼굴: <span className='text-green-600 font-bold'>{testResult.faceCount}개</span>
+                      <p className={`font-medium ${colors.text} text-base`}>
+                        감지된 얼굴: <span className={`${colors.link} font-bold text-xl`}>{testResult.faceCount}개</span>
                       </p>
                       {testResult.warnings.length > 0 && (
-                        <div className='mt-2'>
-                          <p className='font-medium text-orange-700 mb-1'>⚠️ 경고:</p>
-                          <ul className='list-disc list-inside text-gray-600 space-y-1'>
+                        <div className='mt-3'>
+                          <p className='font-medium text-orange-600 mb-2 text-base'>⚠️ 경고:</p>
+                          <ul className={`list-disc list-inside ${colors.textSecondary} space-y-1 ml-2`}>
                             {testResult.warnings.map((warning, idx) => (
-                              <li key={idx}>{warning}</li>
+                              <li key={idx} className="text-sm">{warning}</li>
                             ))}
                           </ul>
                         </div>
                       )}
                       {testResult.warnings.length === 0 && testResult.faceCount > 0 && (
-                        <p className='text-green-600 font-medium mt-2'>
+                        <p className='text-green-600 font-medium mt-3 text-base'>
                           ✅ 모든 얼굴이 정상적으로 감지되었습니다!
                         </p>
                       )}
@@ -1256,14 +1256,14 @@ export default function ScreenshotTime() {
                 </div>
 
                 {testCanvasUrl && (
-                  <div className='mt-3'>
-                    <p className='text-xs text-gray-500 mb-2'>
+                  <div className='mt-4'>
+                    <p className={`text-xs ${colors.textSecondary} mb-2`}>
                       감지된 얼굴에 녹색 박스가 표시됩니다:
                     </p>
                     <img
                       src={testCanvasUrl}
                       alt='Face detection result'
-                      className='w-full border border-gray-300 rounded'
+                      className={`w-full ${colors.border} border-2 rounded`}
                     />
                   </div>
                 )}
