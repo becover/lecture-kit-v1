@@ -16,6 +16,19 @@ interface FaceDetectionResult {
   hasCroppedFaces: boolean;
 }
 
+// FileSystemDirectoryHandle 타입 확장
+interface ExtendedFileSystemDirectoryHandle extends FileSystemDirectoryHandle {
+  queryPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
+  requestPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
+}
+
+// Window 타입 확장
+declare global {
+  interface Window {
+    showDirectoryPicker(options?: { mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
+  }
+}
+
 const DEFAULT_TIME_SLOTS: Omit<TimeSlot, 'id' | 'triggered'>[] = [
   { time: '09:10', enabled: true },
   { time: '10:00', enabled: true },
@@ -93,22 +106,31 @@ export default function ScreenshotTime() {
 
   // 서버 시간 동기화
   useEffect(() => {
-    fetch('https://worldtimeapi.org/api/timezone/Asia/Seoul')
-      .then(res => res.json())
-      .then(data => {
-        const serverTime = new Date(data.datetime).getTime();
+    const syncTime = async () => {
+      try {
+        // timeapi.io 사용 (worldtimeapi.org 대체)
+        const response = await fetch('https://timeapi.io/api/time/current/zone?timeZone=Asia/Seoul');
+        if (!response.ok) throw new Error('Time sync failed');
+
+        const data = await response.json();
+        const serverTime = new Date(data.dateTime).getTime();
         const clientTime = new Date().getTime();
         const offset = serverTime - clientTime;
+
         setTimeOffset(offset);
         console.log('⏰ 시간 동기화 완료:', {
           serverTime: new Date(serverTime).toISOString(),
           clientTime: new Date(clientTime).toISOString(),
           offset: `${offset}ms`,
         });
-      })
-      .catch(err => {
-        console.warn('⚠️ 서버 시간 동기화 실패, 클라이언트 시간 사용:', err);
-      });
+      } catch (err) {
+        console.warn('⚠️ 서버 시간 동기화 실패, 클라이언트 시간 사용');
+        // 클라이언트 시간 사용 (offset = 0)
+        setTimeOffset(0);
+      }
+    };
+
+    syncTime();
   }, []);
 
   // 보정된 현재 시간 가져오기
@@ -293,7 +315,7 @@ export default function ScreenshotTime() {
   const selectSaveDirectory = async () => {
     try {
       if ('showDirectoryPicker' in window) {
-        const dirHandle = await (window as any).showDirectoryPicker({
+        const dirHandle = await window.showDirectoryPicker({
           mode: 'readwrite',
         });
         setSaveDirectory(dirHandle);
@@ -481,7 +503,8 @@ export default function ScreenshotTime() {
         if (saveDirectory && 'showDirectoryPicker' in window) {
           try {
             // 폴더 권한 확인
-            const permission = await (saveDirectory as any).queryPermission({ mode: 'readwrite' });
+            const extendedDir = saveDirectory as ExtendedFileSystemDirectoryHandle;
+            const permission = await extendedDir.queryPermission({ mode: 'readwrite' });
 
             if (permission === 'granted') {
               // 권한 있음 - 바로 저장
@@ -493,7 +516,7 @@ export default function ScreenshotTime() {
               console.log('저장 위치:', savePath);
             } else if (permission === 'prompt') {
               // 권한 요청 필요
-              const newPermission = await (saveDirectory as any).requestPermission({ mode: 'readwrite' });
+              const newPermission = await extendedDir.requestPermission({ mode: 'readwrite' });
               if (newPermission === 'granted') {
                 const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
                 const writable = await fileHandle.createWritable();
@@ -610,7 +633,8 @@ export default function ScreenshotTime() {
         // 저장
         if (saveDirectory && 'showDirectoryPicker' in window) {
           try {
-            const permission = await (saveDirectory as any).queryPermission({ mode: 'readwrite' });
+            const extendedDir = saveDirectory as ExtendedFileSystemDirectoryHandle;
+            const permission = await extendedDir.queryPermission({ mode: 'readwrite' });
             if (permission === 'granted') {
               const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
               const writable = await fileHandle.createWritable();
@@ -618,7 +642,7 @@ export default function ScreenshotTime() {
               await writable.close();
               console.log('✅ 스크린샷 재저장 완료 (폴더):', filename);
             } else if (permission === 'prompt') {
-              const newPermission = await (saveDirectory as any).requestPermission({ mode: 'readwrite' });
+              const newPermission = await extendedDir.requestPermission({ mode: 'readwrite' });
               if (newPermission === 'granted') {
                 const fileHandle = await saveDirectory.getFileHandle(filename, { create: true });
                 const writable = await fileHandle.createWritable();
