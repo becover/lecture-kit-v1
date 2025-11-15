@@ -125,7 +125,7 @@ export default function ScreenshotTime() {
           clientTime: new Date(clientTime).toISOString(),
           offset: `${offset}ms`,
         });
-      } catch (err) {
+      } catch {
         console.warn('⚠️ 서버 시간 동기화 실패, 클라이언트 시간 사용');
         // 클라이언트 시간 사용 (offset = 0)
         setTimeOffset(0);
