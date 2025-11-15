@@ -15,12 +15,30 @@
 - 브라우저 알림 지원
 - 타이머 이름 설정 기능
 
+### 📸 스크린샷 타임
+- 설정된 시간에 자동으로 60초 카운트다운 시작
+- 30초 전 알림음 및 브라우저 알림
+- 10초부터 매초마다 알림음 제공
+- 자동 파일명 생성 (YY-MM-DD-HH-MM 형식)
+- 중복 파일명 자동 처리 (1), (2), (3)...
+- 저장 폴더 선택 (Chrome/Edge 지원)
+- 파일명 프리픽스 기능
+- 얼굴 인식 기능 (SSD MobileNet 모델)
+  - 얼굴 크기 및 위치 자동 분석
+  - 화면 가장자리 잘림 감지
+  - 운영진/운영/KDT/오르미 화면 자동 스킵
+- OCR 기반 이름 인식 (옵션)
+- 얼굴 인식 테스트 기능
+- 서버 시간 동기화로 정확한 시간 관리
+
 ## 기술 스택
 
 - **Frontend Framework**: React 19 + TypeScript
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS v4
 - **Routing**: React Router v6
+- **Face Detection**: @vladmandic/face-api (SSD MobileNet)
+- **OCR**: Tesseract.js
 
 ## 시작하기
 
@@ -59,14 +77,13 @@ lecture-kit-v1/
 │   │   ├── Attendance.tsx
 │   │   ├── Pomodoro.tsx
 │   │   ├── Timer.tsx
+│   │   ├── ScreenshotTime.tsx
 │   │   ├── Survey.tsx
 │   │   └── Upload.tsx
 │   ├── App.tsx          # 라우팅 설정
 │   ├── main.tsx         # 앱 진입점
 │   └── index.css        # 전역 스타일
 ├── public/              # 정적 파일
-├── vercel.json          # Vercel 배포 설정
-├── netlify.toml         # Netlify 배포 설정
 └── package.json         # 프로젝트 설정
 ```
 
@@ -74,13 +91,26 @@ lecture-kit-v1/
 
 ### 수업 시작 전
 1. **뽀모도로 타이머** 활성화
-2. **뽀모도로 타이머** 테스트
+2. **스크린샷 타임** 설정:
+   - 저장 폴더 선택 (선택사항)
+   - 파일명 프리픽스 설정 (선택사항)
+   - 얼굴 인식 활성화 (선택사항)
+   - 시간대 확인 및 조정
+3. **스크린샷 타임** 테스트로 얼굴 인식 정확도 확인
 
 ### 수업 중
 1. **뽀모도로 타이머**로 집중 학습 시간 관리
+2. **스크린샷 타임**으로 매 시간별 자동 스크린샷 촬영
+   - 설정된 시간 60초 전 자동 카운트다운 시작
+   - 30초 전 알림음 및 브라우저 알림
+   - 10초부터 매초마다 알림음
+   - 자동으로 스크린샷 촬영 및 저장
 
 ## 향후 개발 계획
-- [ ] 다크 모드 지원
+- [x] 다크 모드 지원
+- [x] 스크린샷 타임 기능
+- [x] 얼굴 인식 기능
+- [x] OCR 기반 이름 인식
 - [ ] 모바일 반응형 개선
 - [ ] PWA (Progressive Web App) 지원
 
