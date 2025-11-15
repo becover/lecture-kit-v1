@@ -7,6 +7,7 @@ export default function Layout() {
 
   return (
     <div className={`flex flex-col min-h-screen ${colors.bg} transition-colors duration-300`}>
+      {/* Header with full-width background */}
       <nav className={`${colors.card} shadow-md`}>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='flex justify-between h-16'>
@@ -41,11 +42,17 @@ export default function Layout() {
           </div>
         </div>
       </nav>
-      <main className='flex-1 flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 w-full'>
-        <Outlet />
+
+      {/* Main content with same max-width as header */}
+      <main className='flex-1'>
+        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+          <Outlet />
+        </div>
       </main>
-      <footer className={`${colors.card} ${colors.border} border-t mt-12`}>
-        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center ${colors.textSecondary} text-sm`}>
+
+      {/* Footer with full-width background */}
+      <footer className={`${colors.card} ${colors.border} border-t`}>
+        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center ${colors.textSecondary} text-sm'>
           © 2025 강의 유틸리티 킷. 교육을 위한 도구 모음.
         </div>
       </footer>
