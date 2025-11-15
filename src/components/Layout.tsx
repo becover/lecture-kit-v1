@@ -52,8 +52,19 @@ export default function Layout() {
 
       {/* Footer with full-width background */}
       <footer className={`${colors.card} ${colors.border} border-t`}>
-        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center ${colors.textSecondary} text-sm'>
-          © 2025 강의 유틸리티 킷. 교육을 위한 도구 모음.
+        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm'>
+          <span className={colors.textSecondary}>
+            © 2025 강의 유틸리티 킷. 교육을 위한 도구 모음.
+          </span>
+          <span className={`mx-2 ${colors.textSecondary}`}>|</span>
+          <a
+            href="https://github.com/becover/lecture-kit-v1/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${colors.link} ${colors.linkHover} transition-colors`}
+          >
+            🐛 버그 제보
+          </a>
         </div>
       </footer>
     </div>
