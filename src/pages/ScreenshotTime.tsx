@@ -357,6 +357,68 @@ export default function ScreenshotTime() {
     }
   };
 
+  // OCR로 이름 텍스트 추출 (위치 정보 포함)
+  const extractNamesWithPosition = async (canvas: HTMLCanvasElement) => {
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      const result = await Tesseract.recognize(dataUrl, 'kor+eng', {
+        logger: () => {},
+      });
+
+      // words에서 위치 정보와 텍스트 추출
+      interface TesseractWord {
+        text: string;
+        bbox: { x0: number; y0: number; x1: number; y1: number };
+      }
+      const words = (result.data as unknown as { words: TesseractWord[] }).words;
+      const namesWithPosition = words.map((word) => ({
+        text: word.text,
+        bbox: word.bbox, // { x0, y0, x1, y1 }
+      }));
+
+      return namesWithPosition;
+    } catch (error) {
+      console.error('이름 추출 실패:', error);
+      return [];
+    }
+  };
+
+  // 얼굴 박스와 가장 가까운 이름 찾기
+  const findClosestName = (faceBox: { x: number; y: number; width: number; height: number }, names: Array<{ text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }>) => {
+    if (names.length === 0) return null;
+
+    const faceCenterX = faceBox.x + faceBox.width / 2;
+    const faceCenterY = faceBox.y + faceBox.height / 2;
+    const faceBottom = faceBox.y + faceBox.height;
+
+    let closestName = null;
+    let minDistance = Infinity;
+
+    names.forEach((nameObj) => {
+      const nameCenterX = (nameObj.bbox.x0 + nameObj.bbox.x1) / 2;
+      const nameCenterY = (nameObj.bbox.y0 + nameObj.bbox.y1) / 2;
+
+      // 얼굴 박스 아래쪽에 있는 텍스트 우선 (줌은 이름이 아래 표시됨)
+      const isBelow = nameCenterY > faceBottom;
+      const verticalDistance = Math.abs(nameCenterY - faceCenterY);
+      const horizontalDistance = Math.abs(nameCenterX - faceCenterX);
+
+      // 수직 거리에 가중치 (아래쪽이면 가중치 낮춤)
+      const weightedDistance = isBelow
+        ? verticalDistance * 0.3 + horizontalDistance
+        : verticalDistance * 2 + horizontalDistance;
+
+      if (weightedDistance < minDistance && nameObj.text.trim().length > 0) {
+        minDistance = weightedDistance;
+        closestName = nameObj.text.trim();
+      }
+    });
+
+    // 너무 멀리 있으면 null 반환 (얼굴 박스 크기의 3배 이상)
+    const maxDistance = Math.max(faceBox.width, faceBox.height) * 3;
+    return minDistance < maxDistance ? closestName : null;
+  };
+
   // 얼굴 인식 분석
   const analyzeFaces = async (canvas: HTMLCanvasElement): Promise<FaceDetectionResult> => {
     if (!modelRef.current) {
@@ -389,6 +451,9 @@ export default function ScreenshotTime() {
         })
       );
 
+      // OCR로 이름 추출 (병렬 실행)
+      const namesWithPosition = await extractNamesWithPosition(canvas);
+
       const faceCount = detections.length;
       const warnings: string[] = [];
       let hasSmallFaces = false;
@@ -410,12 +475,15 @@ export default function ScreenshotTime() {
         const faceHeight = box.height;
         const faceArea = faceWidth * faceHeight;
 
+        // 얼굴과 가장 가까운 이름 찾기
+        const name = findClosestName(box, namesWithPosition) || `얼굴 ${index + 1}`;
+
         // 얼굴 크기 비율 (전체 화면 대비)
         const faceRatio = faceArea / canvasArea;
 
         // 얼굴이 너무 작은지 체크 (화면의 0.5% 미만으로 낮춤)
         if (faceRatio < 0.005) {
-          warnings.push(`얼굴 ${index + 1}: 얼굴이 너무 작습니다 (화면 비율: ${(faceRatio * 100).toFixed(2)}%)`);
+          warnings.push(`${name}: 얼굴이 너무 작습니다 (화면 비율: ${(faceRatio * 100).toFixed(2)}%)`);
           hasSmallFaces = true;
         }
 
@@ -428,7 +496,7 @@ export default function ScreenshotTime() {
 
         // 얼굴이 화면 가장자리에서 잘리는지 체크
         if (x1 < leftEdge || x2 > rightEdge || y1 < topEdge || y2 > bottomEdge) {
-          warnings.push(`얼굴 ${index + 1}: 얼굴이 화면 가장자리에 위치하여 잘릴 수 있습니다`);
+          warnings.push(`${name}: 얼굴이 화면 가장자리에 위치하여 잘릴 수 있습니다`);
           hasCroppedFaces = true;
         }
       });
