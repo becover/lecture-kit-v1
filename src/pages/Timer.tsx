@@ -87,7 +87,7 @@ export default function Timer() {
   const progress = initialTotal > 0 ? ((initialTotal - timeLeft) / initialTotal) * 100 : 0;
 
   return (
-    <div className='max-w-full'>
+    <div className='max-w-full w-full'>
       <div className='mb-6'>
         <Link
           to='/'
@@ -97,7 +97,9 @@ export default function Timer() {
         </Link>
       </div>
 
-      <div className={`${colors.card} rounded-lg shadow-md p-8 ${colors.border} border transition-colors duration-300`}>
+      <div
+        className={`${colors.card} rounded-lg shadow-md p-8 ${colors.border} border transition-colors duration-300`}
+      >
         <h1 className={`text-3xl font-bold ${colors.text} mb-6 text-center`}>
           수업 타이머 ⏱
         </h1>
@@ -134,7 +136,9 @@ export default function Timer() {
         {!isRunning && timeLeft === 0 && (
           <div className='grid grid-cols-2 gap-4 mb-6'>
             <div>
-              <label className={`block text-sm font-medium ${colors.text} mb-2`}>
+              <label
+                className={`block text-sm font-medium ${colors.text} mb-2`}
+              >
                 분
               </label>
               <input
@@ -149,7 +153,9 @@ export default function Timer() {
               />
             </div>
             <div>
-              <label className={`block text-sm font-medium ${colors.text} mb-2`}>
+              <label
+                className={`block text-sm font-medium ${colors.text} mb-2`}
+              >
                 초
               </label>
               <input
@@ -178,7 +184,9 @@ export default function Timer() {
               </div>
             )}
 
-            <div className={`w-full ${colors.border} border rounded-full h-4 mb-8 overflow-hidden`}>
+            <div
+              className={`w-full ${colors.border} border rounded-full h-4 mb-8 overflow-hidden`}
+            >
               <div
                 className={`h-4 ${colors.primary} rounded-full transition-all duration-1000`}
                 style={{ width: `${progress}%` }}

@@ -50,7 +50,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className='flex flex-col flex-1 justify-between'>
+    <div className='flex flex-col flex-1 w-full justify-between'>
       <div>
         <div className='mb-8'>
           <h1 className={`text-4xl font-bold ${colors.text} mb-2`}>대시보드</h1>
@@ -65,8 +65,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className={`p-6 ${colors.card} rounded-lg shadow-md ${colors.border} border transition-colors duration-300`}>
-        <h2 className={`text-2xl font-bold ${colors.text} mb-4`}>사용 가이드</h2>
+      <div
+        className={`p-6 ${colors.card} rounded-lg shadow-md ${colors.border} border transition-colors duration-300`}
+      >
+        <h2 className={`text-2xl font-bold ${colors.text} mb-4`}>
+          사용 가이드
+        </h2>
         <ul className={`space-y-2 ${colors.textSecondary}`}>
           {/* <li>• <strong>출석 체크:</strong> 수업 시작 시 학생들의 출석을 빠르게 확인하세요</li> */}
           <li>

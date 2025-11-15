@@ -306,7 +306,7 @@ export default function Pomodoro() {
   const sortedSlots = [...timeSlots].sort((a, b) => a.time.localeCompare(b.time));
 
   return (
-    <div className='max-w-full'>
+    <div className='max-w-full w-full'>
       <div className='mb-6'>
         <Link
           to='/'
@@ -316,7 +316,9 @@ export default function Pomodoro() {
         </Link>
       </div>
 
-      <div className={`${colors.card} rounded-lg shadow-md p-6 mb-6 ${colors.border} border transition-colors duration-300`}>
+      <div
+        className={`${colors.card} rounded-lg shadow-md p-6 mb-6 ${colors.border} border transition-colors duration-300`}
+      >
         <div className='flex justify-between items-center mb-6'>
           <div>
             <h1 className={`text-3xl font-bold ${colors.text}`}>
@@ -428,7 +430,9 @@ export default function Pomodoro() {
         {sortedSlots.map((slot) => (
           <div
             key={slot.id}
-            className={`${colors.card} rounded-lg shadow-md p-4 transition-all ${
+            className={`${
+              colors.card
+            } rounded-lg shadow-md p-4 transition-all ${
               slot.enabled ? `border-l-4 ${colors.border}` : 'opacity-60'
             } ${slot.notified ? 'bg-green-50' : ''}`}
           >
@@ -436,7 +440,9 @@ export default function Pomodoro() {
               <div className='space-y-3'>
                 <div className='grid grid-cols-2 gap-3'>
                   <div>
-                    <label className={`block text-sm font-medium ${colors.text} mb-1`}>
+                    <label
+                      className={`block text-sm font-medium ${colors.text} mb-1`}
+                    >
                       시간
                     </label>
                     <input
@@ -447,7 +453,9 @@ export default function Pomodoro() {
                     />
                   </div>
                   <div>
-                    <label className={`block text-sm font-medium ${colors.text} mb-1`}>
+                    <label
+                      className={`block text-sm font-medium ${colors.text} mb-1`}
+                    >
                       메시지
                     </label>
                     <input

@@ -51,8 +51,8 @@ export default function Layout() {
       </nav>
 
       {/* Main content with same max-width as header */}
-      <main className='flex-1 h-full flex flex-col justify-between'>
-        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-full flex-1 flex flex-col justify-between'>
+      <main className='flex-1 h-full flex flex-col items-center justify-between'>
+        <div className='max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8 h-full flex-1 flex flex-col items-center justify-between'>
           <Outlet />
         </div>
       </main>
@@ -65,9 +65,9 @@ export default function Layout() {
           </span>
           <span className={`mx-2 ${colors.textSecondary}`}>|</span>
           <a
-            href="https://github.com/becover/lecture-kit-v1/issues"
-            target="_blank"
-            rel="noopener noreferrer"
+            href='https://github.com/becover/lecture-kit-v1/issues'
+            target='_blank'
+            rel='noopener noreferrer'
             className={`${colors.link} ${colors.linkHover} transition-colors`}
           >
             🐛 버그 제보
